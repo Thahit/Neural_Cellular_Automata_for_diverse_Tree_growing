@@ -1,7 +1,7 @@
 <div align="center">    
 
 # Neural Cellular Automata for diverse Tree growing
-[The page is heavily inspired by Growing 3D Artefacts and Functional Machines with Neural Cellular Automata.](https://github.com/real-itu/3d-artefacts-nca)<br>
+The page is heavily inspired by [Growing 3D Artefacts and Functional Machines with Neural Cellular Automata.](https://github.com/real-itu/3d-artefacts-nca)<br>
 [![Paper](https://img.shields.io/badge/paper-arxiv.2103.08737-B31B1B.svg)](https://arxiv.org/abs/2103.08737)
 
 </div>
