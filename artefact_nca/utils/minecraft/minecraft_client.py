@@ -88,7 +88,7 @@ class MinecraftClient:
         self.model = trainer.model
         self.client = client
         if client is None:
-            self.client = MinecraftServiceStub(grpc.insecure_channel("localhost:5001"))
+            self.client = MinecraftServiceStub(grpc.insecure_channel("localhost:25565"))
         self.coords = coords
         self.min_bounds = (
             self.coords[0] - area_size // 2,

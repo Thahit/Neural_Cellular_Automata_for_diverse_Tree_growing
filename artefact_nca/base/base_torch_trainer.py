@@ -120,7 +120,7 @@ class BaseTorchTrainer(metaclass=abc.ABCMeta):
         self.checkpoint_path = makedirs(self.logging_config["checkpoint_path"])
         self.tensorboard_log_path = self.logging_config["tensorboard_log_path"]
         self.run_name = "{}_{}/".format(
-            datetime.now().strftime("%Y-%m-%d-%H:%M:%S"), self.name
+            datetime.now().strftime("%Y-%m-%d-%H-%M-%S"), self.name
         )
         self.base_checkpoint_path = self.make_checkpoint(makedirs(self.checkpoint_path))
         self.checkpoint_path = makedirs(

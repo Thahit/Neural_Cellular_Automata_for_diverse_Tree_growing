@@ -6,7 +6,7 @@ trainer:
     device_id: 0
     use_cuda: true
     num_hidden_channels: 10
-    epochs: 20000
+    epochs: 1500
     batch_size: 5
     model_config:
         normal_std: 0.1
