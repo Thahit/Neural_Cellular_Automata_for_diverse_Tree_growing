@@ -12,47 +12,22 @@ with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(
-    name="artefact_nca",
+    name="tree_nca",
     version="0.1.0",
-    url="https://github.com/kragniz/cookiecutter-pypackage-minimal",
-    license='MIT',
+    url="https://github.com/Thahit/Neural_Cellular_Automata_for_diverse_Tree_growing",
+    license='ETH',
 
-    author="Shyam Sudhakaran",
-    author_email="shyamsnair@protonmail.com",
+    author="Cedric Caspar | TODO",
+    author_email="ccaspar@student.ethz.ch",
 
-    description="Offical code for the paper: \"Growing 3D Artefacts and Functional Machines with Neural Cellular Automata\"",
+    description="Adaption of the paper: \"Growing 3D Artefacts and Functional Machines with Neural Cellular Automata\"",
 
     long_description=long_description,
     long_description_content_type="text/markdown",
 
     packages=find_packages(exclude=('tests',)),
 
-    install_requires=[
-        'numpy==1.20.1',
-        'nbtlib==1.12.0',
-        'torch',
-        'hydra-core==1.1.0.rc1',
-        'pydantic',
-        'attrs',
-        'loguru',
-        'tensorboard==2.4.0',
-        'matplotlib',
-        'einops',
-        'tqdm',
-        'grpcio',
-        'test-evocraft-py',
-        'protobuf',
-        'click',
-        'omegaconf==2.1.0.rc1',
-        'ipython==7.23.1',
-        'ipywidgets',
-        'ipython-genutils==0.2.0',
-        'wcwidth',
-        'ptyprocess==0.6.0',
-        'pytz',
-        'requests',
-        'torchsummaryX'
-    ],
+    install_requires=[],
 
     include_package_data=True,
 

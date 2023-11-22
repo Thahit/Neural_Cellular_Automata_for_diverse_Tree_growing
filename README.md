@@ -19,6 +19,11 @@ Installation
 ### For general installation
 ```
 python setup.py install
+pip install -r requirements.txt
+```
+If you want CUDA, run afterward
+```
+pip install torch==2.1.0 --index-url https://download.pytorch.org/whl/cu118
 ```
 ### For ray tune + mlflow
 ```
