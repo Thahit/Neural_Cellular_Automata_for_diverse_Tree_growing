@@ -79,6 +79,7 @@ class VoxelCATrainer(BaseTorchTrainer):
     torch_seed: Optional[int] = attr.ib(default=None)
     update_dataset: bool = attr.ib(default=True)
     seed: Optional[Any] = attr.ib(default=None)
+    new_param: Optional[int] = attr.ib(default=None)
 
     def post_dataset_setup(self):
         self.seed = self.dataset.get_seed(1)

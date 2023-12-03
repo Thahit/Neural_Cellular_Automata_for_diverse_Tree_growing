@@ -83,6 +83,7 @@ class VoxelCATrainerConfig(BaseTrainerConfig):
     use_sample_pool: bool = True
     early_stoppage: bool = True
     loss_threshold: float = 0.005
+    new_param: Optional[int] = None
 
 
 config_defaults = [{"trainer": "voxel"}]

@@ -8,6 +8,7 @@ trainer:
     num_hidden_channels: 10
     epochs: 1500
     batch_size: 5
+    new_param: 3
     model_config:
         normal_std: 0.1
         update_net_channel_dims: [32, 32]
