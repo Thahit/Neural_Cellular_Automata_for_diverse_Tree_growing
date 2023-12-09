@@ -9,6 +9,7 @@ trainer:
     epochs: 1500
     batch_size: 5
     embedding_dim: 4
+    checkpoint_interval: 50
     model_config:
         normal_std: 0.1
         update_net_channel_dims: [32, 32]
