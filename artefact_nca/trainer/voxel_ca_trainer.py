@@ -68,6 +68,7 @@ class VoxelCATrainer(BaseTorchTrainer):
     use_bce_loss: bool = attr.ib(default=False)
     use_sample_pool: bool = attr.ib(default=True)
     num_hidden_channels: Optional[int] = attr.ib(default=12)
+    embedding_dim: Optional[int] = attr.ib(default=None)#new
     num_categories: Optional[int] = attr.ib(default=None)
     use_dataset: bool = attr.ib(default=True)
     use_model: bool = attr.ib(default=True)
@@ -232,9 +233,9 @@ class VoxelCATrainer(BaseTorchTrainer):
         batch, targets, indices = self.sample_batch(1)
         return self.get_loss(x, targets)
 
-    def train_func(self, x, targets, steps=1):
+    def train_func(self, x, targets, embeddings = None, steps=1):
         self.optimizer.zero_grad()
-        x = self.model(x, steps=steps, rearrange_output=False)
+        x = self.model(x, embeddings=embeddings, steps=steps, rearrange_output=False)
         loss, iou_loss = self.get_loss(x, targets)
 
         loss.backward()
@@ -249,7 +250,12 @@ class VoxelCATrainer(BaseTorchTrainer):
         return out
 
     def train_iter(self, batch_size=32, iteration=0):
-        batch, targets, indices = self.sample_batch(batch_size)
+        batch, targets, indices = self.sample_batch(batch_size)# maybe change to include embeddings
+
+        embeddings = torch.tensor([i for i in range(4)])# dummy
+        shape_to_emulate = [ num for num in batch.shape]
+        shape_to_emulate[-1] = 1
+        embedding_input = embeddings.repeat(shape_to_emulate)
         if self.use_sample_pool:
             with torch.no_grad():
                 loss_rank = (
@@ -268,9 +274,9 @@ class VoxelCATrainer(BaseTorchTrainer):
         steps = np.random.randint(self.min_steps, self.max_steps)
         if self.half_precision:
             with torch.cuda.amp.autocast():
-                out_dict = self.train_func(batch, targets, steps)
+                out_dict = self.train_func(batch, targets, embedding_input, steps)
         else:
-            out_dict = self.train_func(batch, targets, steps)
+            out_dict = self.train_func(batch, targets, embedding_input, steps)
         out, loss, metrics = out_dict["out"], out_dict["loss"], out_dict["metrics"]
 
         if self.update_dataset and self.use_sample_pool:
