@@ -80,7 +80,7 @@ class VoxelCATrainer(BaseTorchTrainer):
     torch_seed: Optional[int] = attr.ib(default=None)
     update_dataset: bool = attr.ib(default=True)
     seed: Optional[Any] = attr.ib(default=None)
-    new_param: Optional[int] = attr.ib(default=None)
+    embedding_dim: Optional[int] = attr.ib(default=None)
 
     def post_dataset_setup(self):
         self.seed = self.dataset.get_seed(1)
@@ -252,10 +252,15 @@ class VoxelCATrainer(BaseTorchTrainer):
     def train_iter(self, batch_size=32, iteration=0):
         batch, targets, indices = self.sample_batch(batch_size)# maybe change to include embeddings
 
-        embeddings = torch.tensor([i for i in range(4)])# dummy
-        shape_to_emulate = [ num for num in batch.shape]
-        shape_to_emulate[-1] = 1
-        embedding_input = embeddings.repeat(shape_to_emulate)
+        #_______________________________
+        embedding_input = None
+        if self.embedding_dim:
+            embeddings = torch.tensor([i for i in range(4)])# dummy, wil be changed to correct code
+            shape_to_emulate = [ num for num in batch.shape]
+            shape_to_emulate[-1] = 1
+            embedding_input = embeddings.repeat(shape_to_emulate)
+        #_____________________________________
+        
         if self.use_sample_pool:
             with torch.no_grad():
                 loss_rank = (

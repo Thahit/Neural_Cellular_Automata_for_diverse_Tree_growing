@@ -10,8 +10,8 @@ from einops import rearrange, repeat
 from artefact_nca.base.base_torch_model import BaseTorchModel
 
 
-def make_sequental(num_channels, channel_dims):
-    conv3d = torch.nn.Conv3d(num_channels * 3, channel_dims[0], kernel_size=1)
+def make_sequental(num_channels, channel_dims, embedding_dim= None):
+    conv3d = torch.nn.Conv3d(num_channels * 3 + (embedding_dim if embedding_dim else 0), channel_dims[0], kernel_size=1)
     relu = torch.nn.ReLU()
     layer_list = [conv3d, relu]
     for i in range(1, len(channel_dims)):
@@ -71,9 +71,8 @@ class SmallerVoxelUpdateNet(torch.nn.Module):
     ):
         super(SmallerVoxelUpdateNet, self).__init__()
         self.embedding_dim = embedding_dim 
-        if self.embedding_dim != None:
-            num_channels += self.embedding_dim
-        self.out = make_sequental(num_channels, channel_dims)
+
+        self.out = make_sequental(num_channels, channel_dims, embedding_dim)
         
         def init_weights(m):
             if isinstance(m, torch.nn.Conv3d):
@@ -91,7 +90,7 @@ class SmallerVoxelUpdateNet(torch.nn.Module):
     def forward(self, x, emeddings = None):
         if emeddings != None:
             #concat with embeddings
-            x = torch.cat((x, emeddings), 0)
+            x = torch.cat((x, emeddings), 1)#batch, embedd+channel, cordinates(3d)
         return self.out(x)
 
 
@@ -109,7 +108,7 @@ class VoxelCAModel(BaseTorchModel):
         use_normal_init: bool = True,
         zero_bias: bool = True,
         update_net_channel_dims: typing.List[int] = [32, 32],
-        embedding_dim: Optional[int] = None,#new
+        embedding_dim: Optional[int] = None
     ):
         super(VoxelCAModel, self).__init__()
         self.num_hidden_channels = num_hidden_channels
@@ -126,6 +125,7 @@ class VoxelCAModel(BaseTorchModel):
         self.zero_bias = zero_bias
         self.num_channels = self.num_hidden_channels + self.num_categories + 1
         self.embedding_dim = embedding_dim#NEW
+        print("Embedding dimension: ", self.embedding_dim)
         self.perception_net = VoxelPerceptionNet(
             self.num_channels,
             normal_std=self.normal_std,
