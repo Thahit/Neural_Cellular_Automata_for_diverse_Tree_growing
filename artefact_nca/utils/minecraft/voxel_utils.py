@@ -23,7 +23,7 @@ def replace_colors(x, color_dict):
 
 
 def plot_voxels(voxels):
-    fig = plt.figure()
-    ax = fig.gca(projection="3d")
+    ax = plt.figure().add_subplot(projection='3d')
+    # ax = fig.gca(projection="3d")
     ax.voxels(voxels, facecolors=voxels, edgecolor="k")
     plt.show()

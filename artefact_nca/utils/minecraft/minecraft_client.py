@@ -67,14 +67,14 @@ class MinecraftClient:
         cls,
         entity_name=None,
         nbt_path=None,
-        load_coord=(50, 10, 10),
+        load_coord=(0, 0, 0),
         load_entity_config={},
     ):
         if entity_name is None and nbt_path is None:
             raise ValueError("Must provide entity_name and nbt_path")
         if nbt_path is not None:
             return read_nbt_target(
-                nbt_path=nbt_path, load_coord=(50, 10, 10), **load_entity_config
+                nbt_path=nbt_path, load_coord=load_coord, **load_entity_config
             )
         else:
             if entity_name not in entity_function_dict:

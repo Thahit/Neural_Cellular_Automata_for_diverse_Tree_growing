@@ -52,7 +52,7 @@ def dig_direction_from_facing_entry(pallete_entry: dict):
 class BlockBuffer:
     def __init__(self):
         self._blocks = []
-        self._channel = grpc.insecure_channel("localhost:5001")
+        self._channel = grpc.insecure_channel("localhost:25565")
         self._client = mcraft_grpc.MinecraftServiceStub(self._channel)
 
     def add_block(

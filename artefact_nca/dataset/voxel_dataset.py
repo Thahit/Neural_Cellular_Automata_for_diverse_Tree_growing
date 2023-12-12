@@ -76,9 +76,9 @@ class VoxelDataset:
             self.depth = self.input_shape[1]
             self.height = self.input_shape[2]
         if self.target_voxel is not None:
-            self.width = self.target_voxel.shape[0]
-            self.depth = self.target_voxel.shape[1]
-            self.height = self.target_voxel.shape[2]
+            self.width = self.target_voxel.shape[1]
+            self.depth = self.target_voxel.shape[2]
+            self.height = self.target_voxel.shape[3]
             self.targets = repeat(
                 self.target_voxel, "w d h -> b d h w", b=self.pool_size
             ).astype(np.int)
