@@ -85,14 +85,14 @@ class VoxelCATrainer(BaseTorchTrainer):
         print(f'Target: #Trees: {self.dataset.num_samples} | #DifBlocks: {self.dataset.num_categories} | Target shape: {self.dataset.targets.shape} | Target shape: {self.dataset.target_voxel.shape}')
         print(f'Data: #Pools: {self.dataset.pool_size} | #PoolsPerTree: {self.dataset.sample_specific_pools} | Data shape: {self.dataset.data.shape}')
 
-        self.seed = self.dataset.get_seed(1)
+        self.seed = self.dataset.get_seed(1)[0]
         self.num_samples = self.dataset.num_samples
         self.num_categories = self.dataset.num_categories
         self.num_channels = self.dataset.num_channels
         self.model_config["living_channel_dim"] = self.num_categories
 
     def get_seed(self, batch_size=1):
-        return self.dataset.get_seed(batch_size)
+        return self.dataset.get_seed(batch_size)[0]
 
     def sample_batch(self, batch_size: int):
         return self.dataset.sample(batch_size)
@@ -210,15 +210,19 @@ class VoxelCATrainer(BaseTorchTrainer):
         if self.use_iou_loss:
             iou_loss = self.iou(x, targets)
         if self.use_bce_loss:
+            weight_class = torch.ones(self.num_categories)
+            weight_class[0] = 0.001
             class_loss = F.cross_entropy(
-                x[:, : self.num_categories, :, :, :], targets, ignore_index=0
+                x[:, : self.num_categories, :, :, :], targets, weight=weight_class.to(self.device)
             )
             alive = torch.clip(x[:, self.num_categories, :, :, :], 0.0, 1.0)
             alive_target_cells = torch.clip(targets, 0, 1).float()
             alive_loss = torch.nn.MSELoss()(alive, alive_target_cells)
         else:
+            weight_class = torch.ones(self.num_categories)
+            weight_class[0] = 0.001
             class_loss = F.cross_entropy(
-                x[:, : self.num_categories, :, :, :], targets, ignore_index=0
+                x[:, : self.num_categories, :, :, :], targets, weight=weight_class.to(self.device)
             )
             weight = torch.zeros(self.num_categories)
             weight[0] = 1.0
@@ -227,19 +231,23 @@ class VoxelCATrainer(BaseTorchTrainer):
                 targets,
                 weight=weight.to(self.device),
             )
+
         loss = (0.5 * class_loss + 0.5 * alive_loss + iou_loss) / 3.0
-        return loss, iou_loss
+        return loss, iou_loss, class_loss
 
     def get_loss_for_single_instance(self, x, rearrange_input=False):
         if rearrange_input:
             x = rearrange(x, "b d h w c -> b c d h w")
-        batch, targets, indices = self.sample_batch(1)
+        batch, targets, tree, indices = self.sample_batch(1)
         return self.get_loss(x, targets)
 
     def train_func(self, x, targets, steps=1):
         self.optimizer.zero_grad()
+        # print(targets[0, 3:4, 3:5, 4:7])
+        # print(x[0, :self.num_categories, 3:4, 3:5, 4:7])
         x = self.model(x, steps=steps, rearrange_output=False)
-        loss, iou_loss = self.get_loss(x, targets)
+
+        loss, iou_loss, class_loss = self.get_loss(x, targets)
 
         loss.backward()
         self.optimizer.step()
@@ -247,13 +255,14 @@ class VoxelCATrainer(BaseTorchTrainer):
         x = rearrange(x, "b c d h w -> b d h w c")
         out = {
             "out": x,
-            "metrics": {"loss": loss.item(), "iou_loss": iou_loss.item()},
+            "metrics": {"loss": loss.item(), "iou_loss": iou_loss.item(), "class_loss": class_loss},
             "loss": loss,
         }
         return out
 
     def train_iter(self, batch_size=32, iteration=0):
         batch, targets, tree, indices = self.sample_batch(batch_size)
+        # print(f'Batch Sampled: tree {tree} | bs: {batch.size()} | ts: {targets.size()}')
         if self.use_sample_pool:
             with torch.no_grad():
                 loss_rank = (
@@ -263,6 +272,7 @@ class VoxelCATrainer(BaseTorchTrainer):
                     .numpy()
                     .argsort()[::-1]
                 )
+                print(f'Rank: {loss_rank} | first: {(torch.from_numpy(self.get_seed())).shape}')
                 batch = batch[loss_rank.copy()]
                 batch[:1] = torch.from_numpy(self.get_seed()).to(self.device)
 
@@ -274,6 +284,7 @@ class VoxelCATrainer(BaseTorchTrainer):
             with torch.cuda.amp.autocast():
                 out_dict = self.train_func(batch, targets, steps)
         else:
+            # print(f'Batch Input: tree {tree} | bs: {batch.size()} | ts: {targets.size()} | steps: {steps}')
             out_dict = self.train_func(batch, targets, steps)
         out, loss, metrics = out_dict["out"], out_dict["loss"], out_dict["metrics"]
 

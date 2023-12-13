@@ -101,16 +101,16 @@ def get_block_array(
     nbt_data:list,
     min_coords,
     max_coords,
+    no_padding=True,
     unequal_padding=False,
     padding=None,
-    no_padding=False,
 ):
-    for b in nbt_data[0]['palette']:
-        print(b)
-    #
-    for b in nbt_data[0]['blocks']:
-        print(b)
-    print(nbt_data[0]['Blocks'])
+    # for b in nbt_data[0]['palette']:
+    #     print(b)
+    # #
+    # for b in nbt_data[0]['blocks']:
+    #     print(b)
+    # print(nbt_data[0]['Blocks'])
 
     num_trees = len(nbt_data)
     print(f'Num Trees: {num_trees}')
@@ -221,9 +221,9 @@ def read_nbt_target(
     nbt_path,
     load_coord=(0, 0, 0),
     load_range=(20, 50, 20),
+    no_padding=True,
     unequal_padding=False,
     padding=None,
-    no_padding=False,
     block_priority=[],
     place_block_priority_first=True,
 ):
@@ -238,7 +238,7 @@ def read_nbt_target(
     if '.' in nbt_path:
         nbt_file = nbtlib.load(nbt_path)
         return get_block_array(
-            [nbt_file.root], min_coords, max_coords, unequal_padding, padding, no_padding
+            [nbt_file.root], min_coords, max_coords, no_padding, unequal_padding, padding
         )
     else:
 
@@ -256,7 +256,7 @@ def read_nbt_target(
             data.append(nbt_file.root)
 
         return get_block_array(
-            data, min_coords, max_coords, unequal_padding, padding, no_padding
+            data, min_coords, max_coords, no_padding, unequal_padding, padding
         )
 
 

@@ -107,6 +107,7 @@ class VoxelDataset:
     def to_device(self, device):
         self.data = torch.from_numpy(self.data).to(device)
         self.targets = torch.from_numpy(self.targets).to(device)
+        self.targets = self.targets.long()
 
     def get_seed(self, batch_size=1):
         if self.sample_specific_pools:
@@ -121,43 +122,30 @@ class VoxelDataset:
                 for i in range(randint.shape[0]):
                     seed[:, i, self.depth // 2, 0, self.width // 2, randint[i]] = 1.0
         else:
-            seed[
-            :,
-            :,
-            self.depth // 2,
-            self.height // 2,
-            self.width // 2,
-            self.num_categories:,
+            seed[:, :, self.depth // 2, self.height // 2, self.width // 2, self.num_categories:
             ] = 1.0
             if self.use_random_seed_block:
                 for i in range(randint.shape[0]):
-                    seed[
-                    :,
-                    i,
-                    self.depth // 2,
-                    self.height // 2,
-                    self.width // 2,
-                    randint[i],
-                    ] = 1.0
+                    seed[:, i, self.depth // 2, self.height // 2, self.width // 2, randint[i]] = 1.0
         return seed
 
     def sample(self, batch_size):
         if self.sample_random_tree:
             tree = random.sample(range(self.num_samples), 1)
         else:
-            tree = self.last_sample + 1 % self.num_samples
+            tree = (self.last_sample + 1) % self.num_samples
         indices = random.sample(range(self.pool_size), batch_size)
         return self.get_data(tree, indices)
 
     def get_data(self, tree, indices):
         if self.sample_specific_pools:
-            return self.data[tree, indices, :], self.targets[tree, indices, :], tree, indices
-        return self.data[0, indices, :], self.targets[tree, indices, :], tree, indices
+            return self.data[tree, indices], self.targets[tree, indices], tree, indices
+        return self.data[0, indices], self.targets[tree, indices], tree, indices
 
     def update_dataset_function(self, out, tree, indices):
         if self.sample_specific_pools:
-            self.data[tree, indices, :] = out
+            self.data[tree, indices] = out
         else:
-            self.data[0, indices, :] = out
+            self.data[0, indices] = out
         if not self.sample_random_tree:
             self.last_sample = tree
