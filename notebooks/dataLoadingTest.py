@@ -34,7 +34,7 @@ def visualize_output(ct, out):
 if __name__ == '__main__':
     nbt_path = "{}/acacia_001.nbt".format(base_nbt_path)
     blocks, unique_vals, target, color_dict, unique_val_dict = MinecraftClient.load_entity("trees", nbt_path=base_nbt_path,
-                                                                                           load_coord=(0, 0, 0), load_entity_config={'load_range': (6, 14, 6)})
+                                                                                           load_coord=(0, 0, 0), load_entity_config={'load_range': (8, 15, 8)})
     for i in range(target.shape[0]):
         color_arr = convert_to_color(target[i], color_dict)
 

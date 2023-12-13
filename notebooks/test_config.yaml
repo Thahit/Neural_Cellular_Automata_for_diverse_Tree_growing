@@ -15,6 +15,7 @@ trainer:
         lr: 0.0002
     dataset_config:
         pool_size: 32
+        spawn_at_bottom: True
 
 defaults:
     - voxel

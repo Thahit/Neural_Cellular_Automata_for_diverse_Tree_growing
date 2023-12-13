@@ -81,7 +81,12 @@ class VoxelCATrainer(BaseTorchTrainer):
     seed: Optional[Any] = attr.ib(default=None)
 
     def post_dataset_setup(self):
+        print("Post dataset setup!")
+        print(f'Target: #Trees: {self.dataset.num_samples} | #DifBlocks: {self.dataset.num_categories} | Target shape: {self.dataset.targets.shape} | Target shape: {self.dataset.target_voxel.shape}')
+        print(f'Data: #Pools: {self.dataset.pool_size} | #PoolsPerTree: {self.dataset.sample_specific_pools} | Data shape: {self.dataset.data.shape}')
+
         self.seed = self.dataset.get_seed(1)
+        self.num_samples = self.dataset.num_samples
         self.num_categories = self.dataset.num_categories
         self.num_channels = self.dataset.num_channels
         self.model_config["living_channel_dim"] = self.num_categories
@@ -183,12 +188,12 @@ class VoxelCATrainer(BaseTorchTrainer):
             out.append(x)
         return out[-1], out, life_masks
 
-    def update_dataset_function(self, out, indices):
+    def update_dataset_function(self, out, tree, indices):
         with torch.no_grad():
             if self.half_precision:
-                self.dataset.data[indices, :] = out.detach().type(torch.float16)
+                self.dataset.update_dataset_function(out.detach().type(torch.float16), tree, indices)
             else:
-                self.dataset.data[indices, :] = out.detach()
+                self.dataset.update_dataset_function(out.detach(), tree, indices)
 
     def iou(self, out, targets):
         targets = torch.clamp(targets, min=0, max=1)
@@ -248,7 +253,7 @@ class VoxelCATrainer(BaseTorchTrainer):
         return out
 
     def train_iter(self, batch_size=32, iteration=0):
-        batch, targets, indices = self.sample_batch(batch_size)
+        batch, targets, tree, indices = self.sample_batch(batch_size)
         if self.use_sample_pool:
             with torch.no_grad():
                 loss_rank = (
@@ -273,7 +278,7 @@ class VoxelCATrainer(BaseTorchTrainer):
         out, loss, metrics = out_dict["out"], out_dict["loss"], out_dict["metrics"]
 
         if self.update_dataset and self.use_sample_pool:
-            self.update_dataset_function(out, indices)
+            self.update_dataset_function(out, tree, indices)
         out_dict["prev_batch"] = batch.detach().cpu().numpy()
         out_dict["post_batch"] = out.detach().cpu().numpy()
         return out_dict
