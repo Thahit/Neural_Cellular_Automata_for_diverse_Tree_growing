@@ -6,7 +6,7 @@ trainer:
     device_id: 0
     use_cuda: false
     num_hidden_channels: 12
-    checkpoint_interval: 10
+    checkpoint_interval: 50
     wandb: true
     epochs: 1500
     batch_size: 5
