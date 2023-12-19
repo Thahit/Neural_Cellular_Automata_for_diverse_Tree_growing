@@ -3,6 +3,7 @@ from __future__ import annotations
 import abc
 import os
 import typing
+import wandb
 from datetime import datetime
 from typing import Any, Dict, Optional
 
@@ -35,6 +36,7 @@ class BaseTorchTrainer(metaclass=abc.ABCMeta):
     visualize_output: bool = attr.ib(default=False)
     use_cuda: bool = attr.ib(default=False)
     device_id: int = attr.ib(default=0)
+    wandb: bool = attr.ib(default=False)
     early_stoppage: bool = attr.ib(default=False)
     loss_threshold: float = attr.ib(default=-float("inf"))
     batch_size: int = attr.ib(default=32)
@@ -78,6 +80,20 @@ class BaseTorchTrainer(metaclass=abc.ABCMeta):
         self.device = torch.device(
             "cuda:{}".format(self.device_id) if self.use_cuda else "cpu"
         )
+        
+        if self.wandb:
+            wandb.init(
+            # set the wandb project where this run will be logged
+            project="NCA",
+            
+            # track hyperparameters and run metadata
+            config={
+            "name": self.name,
+            "num_samples": self.num_samples,
+            "epochs": self.epochs,
+            #embedding dim if merged
+            }
+)
         self.setup()
         self.setup_logging_and_checkpoints()
         self._setup_dataset()
@@ -255,6 +271,11 @@ class BaseTorchTrainer(metaclass=abc.ABCMeta):
             self.tensorboard_logger.log_scalar(
                 train_metrics[metric], metric, step=epoch
             )
+        
+        if self.wandb:
+            for_wandb = {key: val for key,val in train_metrics.items()}
+            for_wandb["epoch"] = epoch
+            wandb.log(for_wandb)
 
     def visualize(self, *args, **kwargs):
         """Visualize output

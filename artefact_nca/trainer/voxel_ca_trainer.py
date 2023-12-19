@@ -18,7 +18,8 @@ from artefact_nca.dataset.voxel_dataset import VoxelDataset
 from artefact_nca.model.voxel_ca_model import VoxelCAModel
 from artefact_nca.utils.minecraft import *  # noqa
 from artefact_nca.utils.minecraft.voxel_utils import replace_colors
-
+import wandb
+from omegaconf import OmegaConf
 
 # zero out a cube
 def damage_cube(state, x, y, z, half_width):
@@ -97,12 +98,6 @@ class VoxelCATrainer(BaseTorchTrainer):
     def sample_batch(self, batch_size: int):
         return self.dataset.sample(batch_size)
 
-    def log_epoch(self, train_metrics, epoch):
-        for metric in train_metrics:
-            self.tensorboard_logger.log_scalar(
-                train_metrics[metric], metric, step=epoch
-            )
-
     def rank_loss_function(self, x, targets):
         x = rearrange(x, "b d h w c -> b c d h w").to(self.device)
         out = torch.mean(
@@ -141,6 +136,53 @@ class VoxelCATrainer(BaseTorchTrainer):
             batch[-i] *= torch.from_numpy(not_in_sphere[:, :, :, None]).to(self.device)
             batch[-i][:, :, :, 0] += torch.from_numpy(ones).to(self.device)
         return batch
+
+    def setup_trainer(self):
+        self.current_iteration = 0
+        if self.name is None:
+            self.name = self.__class__.__name__
+        self.additional_tune_config = self.tune_config["additional_config"]
+        self.tune_config = {
+            **{
+                k: self.tune_config[k]
+                for k in self.tune_config
+                if k != "additional_config"
+            },
+            **self.additional_tune_config,
+        }
+        self.config = OmegaConf.to_container(self.config)
+        self.config["trainer"]["name"] = self.name
+        self.device = torch.device(
+            "cuda:{}".format(self.device_id) if self.use_cuda else "cpu"
+        )
+        
+        if self.wandb:
+            wandb.init(
+            # set the wandb project where this run will be logged
+            project="NCA",
+            
+            # track hyperparameters and run metadata
+            config={
+            "name": self.name,
+            "num_samples": self.num_samples,
+            "epochs": self.epochs,
+            "min_steps": self.min_steps,
+            "max_steps" : self.max_steps,
+            "damage": self.damage,
+            "num_hidden_channels": self.num_hidden_channels,
+            "batch_size": self.batch_size,
+            #embedding dim if merged
+            }
+)
+        self.setup()
+        self.setup_logging_and_checkpoints()
+        self._setup_dataset()
+        self.setup_dataloader()
+        self._setup_model()
+        self._setup_optimizer()
+        self.load(self.pretrained_path)
+        self.setup_device()
+        self.post_setup()
 
     def visualize(self, out):
         prev_batch = out["prev_batch"]
@@ -272,9 +314,10 @@ class VoxelCATrainer(BaseTorchTrainer):
                     .numpy()
                     .argsort()[::-1]
                 )
-                print(f'Rank: {loss_rank} | first: {(torch.from_numpy(self.get_seed())).shape}')
                 batch = batch[loss_rank.copy()]
                 batch[:1] = torch.from_numpy(self.get_seed()).to(self.device)
+                print(f'Rank: {loss_rank} | \ttargets: {targets.shape}, \tbatch: {batch.shape}')
+                
 
                 if self.damage:
                     self.apply_damage(batch)
