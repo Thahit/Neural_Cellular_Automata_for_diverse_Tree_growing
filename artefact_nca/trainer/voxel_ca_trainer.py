@@ -21,9 +21,9 @@ from artefact_nca.utils.minecraft.voxel_utils import replace_colors
 import wandb
 from omegaconf import OmegaConf
 
+
 # zero out a cube
 def damage_cube(state, x, y, z, half_width):
-
     damaged = state.clone()
 
     x_dim = state.shape[1]
@@ -44,7 +44,6 @@ def damage_cube(state, x, y, z, half_width):
 
 # zero out a sphere
 def damage_sphere(state, x, y, z, radius):
-
     damaged = state.clone()
 
     x_ = list(range(state.shape[1]))
@@ -61,7 +60,6 @@ def damage_sphere(state, x, y, z, radius):
 
 @attr.s
 class VoxelCATrainer(BaseTorchTrainer):
-
     _config_name_: str = "voxel"
 
     damage_radius_denominator: int = attr.ib(default=5)
@@ -83,8 +81,10 @@ class VoxelCATrainer(BaseTorchTrainer):
 
     def post_dataset_setup(self):
         print("Post dataset setup!")
-        print(f'Target: #Trees: {self.dataset.num_samples} | #DifBlocks: {self.dataset.num_categories} | Target shape: {self.dataset.targets.shape} | Target shape: {self.dataset.target_voxel.shape}')
-        print(f'Data: #Pools: {self.dataset.pool_size} | #PoolsPerTree: {self.dataset.sample_specific_pools} | Data shape: {self.dataset.data.shape}')
+        print(
+            f'Target: #Trees: {self.dataset.num_samples} | #DifBlocks: {self.dataset.num_categories} | Target shape: {self.dataset.targets.shape} | Target shape: {self.dataset.target_voxel.shape}')
+        print(
+            f'Data: #Pools: {self.dataset.pool_size} | #PoolsPerTree: {self.dataset.sample_specific_pools} | Data shape: {self.dataset.data.shape}')
 
         self.seed = self.dataset.get_seed(1)[0]
         self.num_samples = self.dataset.num_samples
@@ -130,8 +130,8 @@ class VoxelCATrainer(BaseTorchTrainer):
             )
             not_in_sphere = 1 * (distance > r)
             ones = (
-                np.ones((batch.shape[1], batch.shape[2], batch.shape[3]))
-                - not_in_sphere
+                    np.ones((batch.shape[1], batch.shape[2], batch.shape[3]))
+                    - not_in_sphere
             )
             batch[-i] *= torch.from_numpy(not_in_sphere[:, :, :, None]).to(self.device)
             batch[-i][:, :, :, 0] += torch.from_numpy(ones).to(self.device)
@@ -155,25 +155,25 @@ class VoxelCATrainer(BaseTorchTrainer):
         self.device = torch.device(
             "cuda:{}".format(self.device_id) if self.use_cuda else "cpu"
         )
-        
+
         if self.wandb:
             wandb.init(
-            # set the wandb project where this run will be logged
-            project="NCA",
-            
-            # track hyperparameters and run metadata
-            config={
-            "name": self.name,
-            "num_samples": self.num_samples,
-            "epochs": self.epochs,
-            "min_steps": self.min_steps,
-            "max_steps" : self.max_steps,
-            "damage": self.damage,
-            "num_hidden_channels": self.num_hidden_channels,
-            "batch_size": self.batch_size,
-            #embedding dim if merged
-            }
-)
+                # set the wandb project where this run will be logged
+                project="NCA",
+
+                # track hyperparameters and run metadata
+                config={
+                    "name": self.name,
+                    "num_samples": self.num_samples,
+                    "epochs": self.epochs,
+                    "min_steps": self.min_steps,
+                    "max_steps": self.max_steps,
+                    "damage": self.damage,
+                    "num_hidden_channels": self.num_hidden_channels,
+                    "batch_size": self.batch_size,
+                    # embedding dim if merged
+                }
+            )
         self.setup()
         self.setup_logging_and_checkpoints()
         self._setup_dataset()
@@ -218,7 +218,7 @@ class VoxelCATrainer(BaseTorchTrainer):
 
     def rollout(self, initial=None, steps=100):
         if initial is None:
-            initial, _, _ = self.sample_batch(1)
+            initial, _, _, _, _ = self.sample_batch(1)
         if not isinstance(initial, torch.Tensor):
             initial = torch.from_numpy(initial).to(self.device)
         bar = tqdm(np.arange(steps))
@@ -280,7 +280,7 @@ class VoxelCATrainer(BaseTorchTrainer):
     def get_loss_for_single_instance(self, x, rearrange_input=False):
         if rearrange_input:
             x = rearrange(x, "b d h w c -> b c d h w")
-        batch, targets, tree, indices = self.sample_batch(1)
+        batch, targets, embedding, tree, indices = self.sample_batch(1)
         return self.get_loss(x, targets)
 
     def train_func(self, x, targets, steps=1):
@@ -303,7 +303,7 @@ class VoxelCATrainer(BaseTorchTrainer):
         return out
 
     def train_iter(self, batch_size=32, iteration=0):
-        batch, targets, tree, indices = self.sample_batch(batch_size)
+        batch, targets, embedding, tree, indices = self.sample_batch(batch_size)
         # print(f'Batch Sampled: tree {tree} | bs: {batch.size()} | ts: {targets.size()}')
         if self.use_sample_pool:
             with torch.no_grad():
@@ -316,8 +316,7 @@ class VoxelCATrainer(BaseTorchTrainer):
                 )
                 batch = batch[loss_rank.copy()]
                 batch[:1] = torch.from_numpy(self.get_seed()).to(self.device)
-                print(f'Rank: {loss_rank} | \ttargets: {targets.shape}, \tbatch: {batch.shape}')
-                
+                # print(f'Rank: {loss_rank} | \ttargets: {targets.shape}, \tbatch: {batch.shape}')
 
                 if self.damage:
                     self.apply_damage(batch)

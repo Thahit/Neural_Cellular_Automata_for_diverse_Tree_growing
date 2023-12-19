@@ -21,13 +21,14 @@ from artefact_nca.config import load_config
 from artefact_nca.utils.logging import TensorboardLogger
 from artefact_nca.utils.utils import makedirs
 
+
 def fullname(cls):
     module = cls.__module__
     return "{}.{}".format(module, cls.__name__)
 
+
 @attr.s
 class BaseTorchTrainer(metaclass=abc.ABCMeta):
-
     _config_group_ = "trainer"
     _config_name_ = "default"
 
@@ -58,6 +59,7 @@ class BaseTorchTrainer(metaclass=abc.ABCMeta):
     current_iteration: int = attr.ib(init=False)
     checkpoint_path: str = attr.ib(init=False)
     tensorboard_log_path: str = attr.ib(init=False)
+    verbose: bool = attr.ib(init=False)
 
     def __attrs_post_init__(self):
         self.setup_trainer()
@@ -80,20 +82,20 @@ class BaseTorchTrainer(metaclass=abc.ABCMeta):
         self.device = torch.device(
             "cuda:{}".format(self.device_id) if self.use_cuda else "cpu"
         )
-        
+
         if self.wandb:
             wandb.init(
-            # set the wandb project where this run will be logged
-            project="NCA",
-            
-            # track hyperparameters and run metadata
-            config={
-            "name": self.name,
-            "num_samples": self.num_samples,
-            "epochs": self.epochs,
-            #embedding dim if merged
-            }
-)
+                # set the wandb project where this run will be logged
+                project="NCA",
+
+                # track hyperparameters and run metadata
+                config={
+                    "name": self.name,
+                    "num_samples": self.num_samples,
+                    "epochs": self.epochs,
+                    # embedding dim if merged
+                }
+            )
         self.setup()
         self.setup_logging_and_checkpoints()
         self._setup_dataset()
@@ -106,7 +108,7 @@ class BaseTorchTrainer(metaclass=abc.ABCMeta):
 
     @classmethod
     def from_config(
-        cls, config_path: Optional[str] = None, config: Dict[str, Any] = {}
+            cls, config_path: Optional[str] = None, config: Dict[str, Any] = {}
     ) -> BaseTorchTrainer:
         _config = load_config(config_path, config_name=cls._config_name_)
         _config["trainer"]["config"] = _config
@@ -114,7 +116,7 @@ class BaseTorchTrainer(metaclass=abc.ABCMeta):
         return instantiate(_config.trainer, _recursive_=False, **config)
 
     def tune(
-        self, tune_config: Dict[str, Any] = {}, trainer_overrides: Dict[str, Any] = {}
+            self, tune_config: Dict[str, Any] = {}, trainer_overrides: Dict[str, Any] = {}
     ):
         try:
             from artefact_nca.tune.tune_wrapper import TuneWrapper
@@ -219,10 +221,10 @@ class BaseTorchTrainer(metaclass=abc.ABCMeta):
         return path
 
     def save(
-        self,
-        base_path: Optional[str] = None,
-        step: Optional[int] = None,
-        path_name: Optional[str] = None,
+            self,
+            base_path: Optional[str] = None,
+            step: Optional[int] = None,
+            path_name: Optional[str] = None,
     ) -> str:
         checkpoint_path = self.checkpoint_path
         if base_path is not None:
@@ -257,7 +259,7 @@ class BaseTorchTrainer(metaclass=abc.ABCMeta):
             self.load_model(self.pretrained_path)
 
     def load_model(
-        self, checkpoint_path: str, load_optimizer_and_scheduler: bool = True
+            self, checkpoint_path: str, load_optimizer_and_scheduler: bool = True
     ):
         checkpoint = torch.load(checkpoint_path, map_location=self.device)
         self.model.load_state_dict(checkpoint["model"])
@@ -271,9 +273,9 @@ class BaseTorchTrainer(metaclass=abc.ABCMeta):
             self.tensorboard_logger.log_scalar(
                 train_metrics[metric], metric, step=epoch
             )
-        
+
         if self.wandb:
-            for_wandb = {key: val for key,val in train_metrics.items()}
+            for_wandb = {key: val for key, val in train_metrics.items()}
             for_wandb["epoch"] = epoch
             wandb.log(for_wandb)
 
@@ -284,7 +286,7 @@ class BaseTorchTrainer(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def train_iter(
-        self, batch_size: int, iteration: Optional[int] = None
+            self, batch_size: int, iteration: Optional[int] = None
     ) -> Dict[Any, Any]:
         """
             Training iteration, specify learning process here
@@ -303,7 +305,7 @@ class BaseTorchTrainer(metaclass=abc.ABCMeta):
         pass
 
     def train(
-        self, batch_size=None, epochs=None, checkpoint_interval=None, visualize=None
+            self, batch_size=None, epochs=None, checkpoint_interval=None, visualize=None
     ) -> typing.Dict[str, Any]:
         """Main training function, should call train_iter
         """

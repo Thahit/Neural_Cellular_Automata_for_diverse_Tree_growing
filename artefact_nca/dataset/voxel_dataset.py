@@ -1,5 +1,8 @@
 import copy
+import os
+import pathlib
 import random
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -31,6 +34,7 @@ class VoxelDataset:
             pool_size: int = 48,
             sample_specific_pool: bool = False,
             random_tree_sampling: bool = True,
+            load_embeddings: bool = True,
             num_hidden_channels: Any = 10,
             half_precision: bool = False,
             spawn_at_bottom: bool = True,
@@ -38,11 +42,14 @@ class VoxelDataset:
             device: Optional[Any] = None,
             input_shape: Optional[List[int]] = None,
             padding_by_power: Optional[int] = None,
+            verbose: bool = True
     ):
+        self.verbose = verbose
         self.entity_name = entity_name
         self.load_entity_config = load_entity_config
         self.load_coord = load_coord
         self.nbt_path = nbt_path
+        self.load_embeddings = load_embeddings
         self.target_voxel = target_voxel
         self.target_color_dict = target_color_dict
         self.target_unique_val_dict = target_unique_val_dict
@@ -94,6 +101,9 @@ class VoxelDataset:
             self.targets = np.zeros(
                 (self.num_samples, self.pool_size, self.depth, self.height, self.width)
             ).astype(np.int)
+        self.embedding_channels = 0
+        if self.load_embeddings:
+            self.embeddings = self.setup_embeddings()
         self.num_channels = num_hidden_channels + self.num_categories + 1
         self.living_channel_dim = self.num_categories
         self.half_precision = half_precision
@@ -139,13 +149,41 @@ class VoxelDataset:
 
     def get_data(self, tree, indices):
         if self.sample_specific_pools:
-            return self.data[tree, indices], self.targets[tree, indices], tree, indices
-        return self.data[0, indices], self.targets[tree, indices], tree, indices
+            return self.data[tree, indices], self.targets[tree, indices], self.embeddings[tree], tree, indices
+        return self.data[0, indices], self.targets[tree, indices], self.embeddings[tree], tree, indices
 
-    def update_dataset_function(self, out, tree, indices):
+    def update_dataset_function(self, out, tree, indices, embedding=None, saveToFile=False):
         if self.sample_specific_pools:
             self.data[tree, indices] = out
         else:
             self.data[0, indices] = out
         if not self.sample_random_tree:
             self.last_sample = tree
+        if embedding is not None and self.load_embeddings:
+            self.embeddings[tree] = embedding
+            if saveToFile:
+                np.savetxt(os.path.join(self.nbt_path, 'embeddings.csv'), self.embeddings, delimiter=',', fmt='%10.5f')
+
+    def setup_embeddings(self):
+        if self.nbt_path is None:
+            raise ValueError("Must provide an nbt_path")
+        if self.nbt_path is not None:
+            if '.' in self.nbt_path:
+                raise ValueError("Path must be of folder type or turn of embedding loading")
+            else:
+                p = Path(self.nbt_path)
+                if not p.exists():
+                    raise Exception("failed to find the data folder")
+
+                try:
+                    embeddings = np.genfromtxt(os.path.join(self.nbt_path, 'embeddings.csv'), delimiter=",").astype(np.float32)
+                except Exception:
+                    raise Exception("embeddings.txt does not exists in data folder")
+                shape = embeddings.shape
+                if shape[0] != self.num_samples:
+                    raise ValueError("Number of embedding does not match number of loaded trees")
+                else:
+                    self.embedding_channels = shape[1]
+                    if self.verbose: print(f'Loaded {shape[0]} trees with each {shape[1]} embeddings')
+                    if self.verbose: print(embeddings)
+                    return embeddings
