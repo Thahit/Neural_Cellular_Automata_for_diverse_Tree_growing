@@ -67,6 +67,7 @@ class VoxelCATrainer(BaseTorchTrainer):
     use_bce_loss: bool = attr.ib(default=False)
     use_sample_pool: bool = attr.ib(default=True)
     num_hidden_channels: Optional[int] = attr.ib(default=12)
+    embedding_dim: Optional[int] = attr.ib(default=None)
     num_categories: Optional[int] = attr.ib(default=None)
     use_dataset: bool = attr.ib(default=True)
     use_model: bool = attr.ib(default=True)
@@ -97,6 +98,12 @@ class VoxelCATrainer(BaseTorchTrainer):
 
     def sample_batch(self, batch_size: int):
         return self.dataset.sample(batch_size)
+
+    # def log_epoch(self, train_metrics, epoch):
+    #     for metric in train_metrics:
+    #         self.tensorboard_logger.log_scalar(
+    #             train_metrics[metric], metric, step=epoch
+    #         )
 
     def rank_loss_function(self, x, targets):
         x = rearrange(x, "b d h w c -> b c d h w").to(self.device)
@@ -283,11 +290,11 @@ class VoxelCATrainer(BaseTorchTrainer):
         batch, targets, embedding, tree, indices = self.sample_batch(1)
         return self.get_loss(x, targets)
 
-    def train_func(self, x, targets, steps=1):
+    def train_func(self, x, targets, embeddings=None, steps=1):
         self.optimizer.zero_grad()
         # print(targets[0, 3:4, 3:5, 4:7])
         # print(x[0, :self.num_categories, 3:4, 3:5, 4:7])
-        x = self.model(x, steps=steps, rearrange_output=False)
+        x = self.model(x, embeddings=embeddings, steps=steps, rearrange_output=False)
 
         loss, iou_loss, class_loss = self.get_loss(x, targets)
 
@@ -305,6 +312,17 @@ class VoxelCATrainer(BaseTorchTrainer):
     def train_iter(self, batch_size=32, iteration=0):
         batch, targets, embedding, tree, indices = self.sample_batch(batch_size)
         # print(f'Batch Sampled: tree {tree} | bs: {batch.size()} | ts: {targets.size()}')
+        batch, targets, indices = self.sample_batch(batch_size)# maybe change to include embeddings
+
+        #_______________________________
+        embedding_input = None
+        if self.embedding_dim:
+            embeddings = torch.tensor([i for i in range(4)])# dummy, wil be changed to correct code
+            shape_to_emulate = [ num for num in batch.shape]
+            shape_to_emulate[-1] = 1
+            embedding_input = embeddings.repeat(shape_to_emulate)
+        #_____________________________________
+
         if self.use_sample_pool:
             with torch.no_grad():
                 loss_rank = (
@@ -324,10 +342,10 @@ class VoxelCATrainer(BaseTorchTrainer):
         steps = np.random.randint(self.min_steps, self.max_steps)
         if self.half_precision:
             with torch.cuda.amp.autocast():
-                out_dict = self.train_func(batch, targets, steps)
+                out_dict = self.train_func(batch, targets, embedding_input, steps)
         else:
             # print(f'Batch Input: tree {tree} | bs: {batch.size()} | ts: {targets.size()} | steps: {steps}')
-            out_dict = self.train_func(batch, targets, steps)
+            out_dict = self.train_func(batch, targets, embedding_input, steps)
         out, loss, metrics = out_dict["out"], out_dict["loss"], out_dict["metrics"]
 
         if self.update_dataset and self.use_sample_pool:
