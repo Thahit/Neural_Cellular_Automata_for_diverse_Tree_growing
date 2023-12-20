@@ -7,8 +7,11 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 import torch
-from einops import repeat
+from IPython.core.display import clear_output
+from einops import repeat, rearrange
+from matplotlib import pyplot as plt
 
+from artefact_nca.utils.minecraft import replace_colors
 from artefact_nca.utils.minecraft.block_loader import get_color_dict
 from artefact_nca.utils.minecraft.minecraft_client import MinecraftClient
 
@@ -127,17 +130,37 @@ class VoxelDataset:
         # random_class_arr = np.eye(self.num_categories)[np.random.choice(np.arange(1,self.num_categories), batch_size)]
         randint = np.random.randint(1, self.num_categories, batch_size)
         if self.spawn_at_bottom:
-            seed[:, :, self.depth // 2, 0, self.width // 2, self.num_categories:] = 1.0
+            seed[:, :, self.depth // 3: 2*self.depth // 3, 0:3, self.width // 3: 2*self.width // 3, self.num_categories:] = 1.0
             if self.use_random_seed_block:
                 for i in range(randint.shape[0]):
-                    seed[:, i, self.depth // 2, 0, self.width // 2, randint[i]] = 1.0
+                    seed[:, i, self.depth // 3: 2*self.depth // 3, 0:3, self.width // 3: 2*self.width // 3, randint[i]] = 1.0
         else:
-            seed[:, :, self.depth // 2, self.height // 2, self.width // 2, self.num_categories:
-            ] = 1.0
+            seed[:, :, self.depth // 3: 2*self.depth // 3, self.height // 3: 2*self.height // 3, self.width // 3: 2*self.width // 3, self.num_categories:] = 1.0
             if self.use_random_seed_block:
                 for i in range(randint.shape[0]):
-                    seed[:, i, self.depth // 2, self.height // 2, self.width // 2, randint[i]] = 1.0
+                    seed[:, i, self.depth // 3: 2*self.depth // 3, self.height // 3: 2*self.height // 3, self.width // 3: 2*self.width // 3, randint[i]] = 1.0
         return seed
+
+    def visualize_seed(self):
+        if self.verbose:
+            post_batch = rearrange(self.data[0], "b d h w c -> b w d h c")
+            post_batch = replace_colors(
+                np.argmax(post_batch[:, :, :, :, : self.num_categories], -1),
+                self.target_color_dict,
+            )
+            clear_output()
+            vis1 = post_batch[:5]
+            num_cols = len(vis1)
+            num_rows = 1
+            vis1[vis1 == "_empty"] = None
+            fig = plt.figure(figsize=(15, 10))
+
+            for i in range(1, num_cols + 1):
+                ax1 = fig.add_subplot(num_rows, num_cols, i, projection="3d")
+                ax1.voxels(vis1[i - 1], facecolors=vis1[i - 1], edgecolor="k")
+                ax1.set_title("Pool {}".format(i))
+            plt.subplots_adjust(bottom=0.005)
+            plt.show()
 
     def sample(self, batch_size):
         if self.sample_random_tree:

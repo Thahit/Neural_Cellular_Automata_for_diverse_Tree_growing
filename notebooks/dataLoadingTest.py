@@ -53,3 +53,4 @@ if __name__ == '__main__':
     #
     #     plt.show()
     ct.train()
+    torch.save({"model": ct.model.state_dict()}, "test_model.pt")

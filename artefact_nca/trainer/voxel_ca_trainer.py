@@ -87,8 +87,9 @@ class VoxelCATrainer(BaseTorchTrainer):
         print(
             f'Data: #Pools: {self.dataset.pool_size} | #PoolsPerTree: {self.dataset.sample_specific_pools} | Data shape: {self.dataset.data.shape}')
 
-        self.seed = self.dataset.get_seed(1)[0]
-        self.num_samples = self.dataset.num_samples
+        self.seed = self.dataset.get_seed(1)[0]  # Not really needed?
+        self.dataset.visualize_seed()
+        self.num_samples: int = self.dataset.num_samples
         self.num_categories = self.dataset.num_categories
         self.num_channels = self.dataset.num_channels
         self.model_config["living_channel_dim"] = self.num_categories
@@ -167,10 +168,10 @@ class VoxelCATrainer(BaseTorchTrainer):
             wandb.init(
                 # set the wandb project where this run will be logged
                 project="NCA",
-
+                name=self.name,
                 # track hyperparameters and run metadata
                 config={
-                    "name": self.name,
+                    "dataset": self.name.split('_')[0],
                     "num_samples": self.num_samples,
                     "epochs": self.epochs,
                     "min_steps": self.min_steps,
@@ -179,8 +180,7 @@ class VoxelCATrainer(BaseTorchTrainer):
                     "num_hidden_channels": self.num_hidden_channels,
                     "batch_size": self.batch_size,
                     # embedding dim if merged
-                }
-            )
+                })
         self.setup()
         self.setup_logging_and_checkpoints()
         self._setup_dataset()
@@ -312,16 +312,16 @@ class VoxelCATrainer(BaseTorchTrainer):
     def train_iter(self, batch_size=32, iteration=0):
         batch, targets, embedding, tree, indices = self.sample_batch(batch_size)
         # print(f'Batch Sampled: tree {tree} | bs: {batch.size()} | ts: {targets.size()}')
-        batch, targets, indices = self.sample_batch(batch_size)# maybe change to include embeddings
 
-        #_______________________________
+        # _______________________________
         embedding_input = None
         if self.embedding_dim:
-            embeddings = torch.tensor([i for i in range(4)])# dummy, wil be changed to correct code
-            shape_to_emulate = [ num for num in batch.shape]
+            print('Embedding dim active')
+            embeddings = torch.tensor([i for i in range(4)])  # dummy, wil be changed to correct code
+            shape_to_emulate = [num for num in batch.shape]
             shape_to_emulate[-1] = 1
             embedding_input = embeddings.repeat(shape_to_emulate)
-        #_____________________________________
+        # _____________________________________
 
         if self.use_sample_pool:
             with torch.no_grad():

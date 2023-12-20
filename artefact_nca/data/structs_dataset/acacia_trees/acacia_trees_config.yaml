@@ -6,9 +6,9 @@ trainer:
     device_id: 0
     use_cuda: true
     num_hidden_channels: 12
-    checkpoint_interval: 50
+    checkpoint_interval: 100
     wandb: true
-    epochs: 1500
+    epochs: 3000
     batch_size: 5
     model_config:
         normal_std: 0.1
@@ -17,7 +17,7 @@ trainer:
         lr: 0.002
     dataset_config:
         pool_size: 32
-        spawn_at_bottom: False
+        spawn_at_bottom: false
 
 defaults:
     - voxel
