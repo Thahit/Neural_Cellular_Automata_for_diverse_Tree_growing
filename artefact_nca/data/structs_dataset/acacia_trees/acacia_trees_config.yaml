@@ -4,7 +4,7 @@ trainer:
     max_steps: 65
     visualize_output: true
     device_id: 0
-    use_cuda: false
+    use_cuda: true
     num_hidden_channels: 12
     checkpoint_interval: 50
     wandb: true
