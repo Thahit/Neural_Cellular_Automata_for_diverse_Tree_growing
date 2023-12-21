@@ -84,6 +84,7 @@ class VoxelCATrainer(BaseTorchTrainer):
     update_dataset: bool = attr.ib(default=True)
     seed: Optional[Any] = attr.ib(default=None)
     var_lr: float = attr.ib(default=None)
+    var_loss_weight: float = attr.ib(default=1.)
 
     def post_dataset_setup(self):
         print("Post dataset setup!")
@@ -335,7 +336,7 @@ class VoxelCATrainer(BaseTorchTrainer):
             variational_loss = - 0.5 * torch.sum(1+ embedding_params[1] - embedding_params[0].pow(2) - embedding_params[1].exp())
             
         loss = (0.5 * class_loss + 0.5 * alive_loss + iou_loss) / 3.0
-        loss += variational_loss*.5
+        loss += variational_loss*self.var_loss_weight
         return loss, iou_loss, class_loss, variational_loss
 
     def get_loss_for_single_instance(self, x, rearrange_input=False):

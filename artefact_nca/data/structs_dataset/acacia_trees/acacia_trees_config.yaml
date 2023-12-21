@@ -13,6 +13,7 @@ trainer:
     epochs: 3000
     batch_size: 5
     var_lr : .001
+    var_loss_weight: 0.1
     model_config:
         normal_std: 0.1
         update_net_channel_dims: [32, 32]

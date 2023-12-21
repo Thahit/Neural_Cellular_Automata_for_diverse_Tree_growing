@@ -89,6 +89,7 @@ class VoxelCATrainerConfig(BaseTrainerConfig):
     variational : bool = False
     embedding_dim: Optional[int] = None
     var_lr: float = 0.0001
+    var_loss_weight:float = 1.
 
 
 config_defaults = [{"trainer": "voxel"}]
