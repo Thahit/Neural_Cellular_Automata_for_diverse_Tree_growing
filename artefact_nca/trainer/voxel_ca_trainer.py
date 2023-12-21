@@ -1,6 +1,7 @@
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
+import typing
 import attr
 import matplotlib.pyplot as plt
 import numpy as np
@@ -11,6 +12,8 @@ from einops import rearrange
 from hydra.utils import instantiate
 from IPython.display import clear_output
 from tqdm import tqdm
+from loguru import logger
+
 
 # internal
 from artefact_nca.base.base_torch_trainer import BaseTorchTrainer
@@ -239,12 +242,55 @@ class VoxelCATrainer(BaseTorchTrainer):
             out.append(x)
         return out[-1], out, life_masks
 
-    def update_dataset_function(self, out, tree, indices, embedding = None):
+
+    def train(
+            self, batch_size=None, epochs=None, checkpoint_interval=None, visualize=None
+    ) -> typing.Dict[str, Any]:
+        """Main training function, should call train_iter
+        """
+        if batch_size is not None:
+            self.batch_size = batch_size
+        if epochs is not None:
+            self.epochs = epochs
+        if checkpoint_interval is not None:
+            self.checkpoint_interval = checkpoint_interval
+        self.pre_train()
+        self.setup_logging_and_checkpoints()
+        logger.info(
+            "Follow tensorboard logs with: tensorboard --logdir {}".format(
+                self.tensorboard_log_path
+            )
+        )
+        self.setup_dataloader()
+        bar = tqdm(np.arange(self.epochs))
+        for i in bar:
+            save = i % self.checkpoint_interval == 0
+            self.pre_train_iter()
+            output = self.train_iter(self.batch_size, i, save)
+            self.post_train_iter(output)
+            metrics = output.get("metrics", {})
+            loss = output["loss"]
+            self.log_epoch(metrics, i)
+
+            description = "--".join(["{}:{}".format(k, metrics[k]) for k in metrics])
+            bar.set_description(description)
+            if save:
+                if self.visualize_output:
+                    self.visualize(output)
+                self.save(step=i)
+            if self.early_stoppage:
+                if loss <= self.loss_threshold:
+                    break
+        self.post_train()
+        return metrics
+
+
+    def update_dataset_function(self, out, tree, indices, embedding = None, save_emb=False):
         with torch.no_grad():
             if self.half_precision:
-                self.dataset.update_dataset_function(out.detach().type(torch.float16), tree, indices, embedding)
+                self.dataset.update_dataset_function(out.detach().type(torch.float16), tree, indices, embedding, save_emb)
             else:
-                self.dataset.update_dataset_function(out.detach(), tree, indices, embedding)
+                self.dataset.update_dataset_function(out.detach(), tree, indices, embedding, save_emb)
 
     def iou(self, out, targets):
         targets = torch.clamp(targets, min=0, max=1)
@@ -298,7 +344,7 @@ class VoxelCATrainer(BaseTorchTrainer):
         batch, targets, embedding, tree, indices = self.sample_batch(1)
         return self.get_loss(x, targets)
 
-    def train_func(self, x, targets, embeddings=None, embedding_params = None, steps=1):
+    def train_func(self, x, targets, embeddings=None, embedding_params = None, steps=1, save_emb = False):
         self.optimizer.zero_grad()
         # print(targets[0, 3:4, 3:5, 4:7])
         # print(x[0, :self.num_categories, 3:4, 3:5, 4:7])
@@ -323,7 +369,7 @@ class VoxelCATrainer(BaseTorchTrainer):
                 embedding_params -= self.var_lr * embedding_params.grad
         return out
 
-    def train_iter(self, batch_size=32, iteration=0):
+    def train_iter(self, batch_size=32, iteration=0, save_emb=False):
         batch, targets, embedding, tree, indices = self.sample_batch(batch_size)
         # print(f'Batch Sampled: tree {tree} | bs: {batch.size()} | ts: {targets.size()}')
         embedding = embedding.reshape(2,-1)# dont come in correct shape
@@ -378,7 +424,7 @@ class VoxelCATrainer(BaseTorchTrainer):
         if self.update_dataset and self.use_sample_pool:
             if self.variational:
                 embedding=embedding.reshape((1,-1)).detach().numpy()
-            self.update_dataset_function(out, tree, indices, embedding= embedding)
+            self.update_dataset_function(out, tree, indices, embedding= embedding, save_emb=save_emb)
         out_dict["prev_batch"] = batch.detach().cpu().numpy()
         out_dict["post_batch"] = out.detach().cpu().numpy()
         
