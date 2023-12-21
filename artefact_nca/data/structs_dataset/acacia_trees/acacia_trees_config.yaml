@@ -16,8 +16,7 @@ trainer:
     batch_size: 5
     model_config:
         normal_std: 0.1
-        update_net_channel_dims: [32, 32]
-        extra_layers:  2
+        update_net_channel_dims: [64, 32, 32, 16]
     optimizer_config:
         lr: 0.002
     dataset_config:
