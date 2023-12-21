@@ -76,6 +76,7 @@ class VoxelCATrainerConfig(BaseTrainerConfig):
     half_precision: bool = False
     min_steps: int = 48
     max_steps: int = 64
+    clip_gradients: bool = False
     damage: bool = False
     num_damaged: int = 2
     damage_radius_denominator: int = 5
@@ -89,7 +90,10 @@ class VoxelCATrainerConfig(BaseTrainerConfig):
     early_stoppage: bool = True
     loss_threshold: float = 0.005
     wandb: bool = False
+    variational : bool = False
     embedding_dim: Optional[int] = None
+    var_lr: float = 0.0001
+    var_loss_weight:float = 1.
 
 
 config_defaults = [{"trainer": "voxel"}]
