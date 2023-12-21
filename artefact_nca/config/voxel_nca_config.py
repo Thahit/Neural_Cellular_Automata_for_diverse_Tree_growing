@@ -72,6 +72,7 @@ class VoxelCATrainerConfig(BaseTrainerConfig):
     half_precision: bool = False
     min_steps: int = 48
     max_steps: int = 64
+    clip_gradients: bool = False
     damage: bool = False
     num_damaged: int = 2
     damage_radius_denominator: int = 5

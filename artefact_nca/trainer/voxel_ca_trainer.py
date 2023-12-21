@@ -85,6 +85,7 @@ class VoxelCATrainer(BaseTorchTrainer):
     seed: Optional[Any] = attr.ib(default=None)
     var_lr: float = attr.ib(default=None)
     var_loss_weight: float = attr.ib(default=1.)
+    clip_gradients: bool = attr.ib(default=False)
 
     def post_dataset_setup(self):
         print("Post dataset setup!")
@@ -352,10 +353,11 @@ class VoxelCATrainer(BaseTorchTrainer):
         x = self.model(x, embeddings=embeddings, steps=steps, rearrange_output=False)
 
         loss, iou_loss, class_loss, var_loss = self.get_loss(x, targets, embedding_params)
-
-        
         
         loss.backward()
+        if self.clip_gradients:
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1)
+
         self.optimizer.step()
         self.scheduler.step()
         x = rearrange(x, "b c d h w -> b d h w c")

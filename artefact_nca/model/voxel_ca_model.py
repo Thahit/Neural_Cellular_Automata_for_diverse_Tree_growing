@@ -12,14 +12,14 @@ from artefact_nca.base.base_torch_model import BaseTorchModel
 
 def make_sequental(num_channels, channel_dims, embedding_dim= None):
     conv3d = torch.nn.Conv3d(num_channels * 3 + (embedding_dim if embedding_dim else 0), channel_dims[0], kernel_size=1)
-    relu = torch.nn.ReLU()
-    layer_list = [conv3d, relu]
+    gelu = torch.nn.GELU()
+    layer_list = [conv3d, gelu]
         
     for i in range(1, len(channel_dims)):
         layer_list.append(
             torch.nn.Conv3d(channel_dims[i - 1], channel_dims[i], kernel_size=1)
         )
-        layer_list.append(torch.nn.ReLU())
+        layer_list.append(torch.nn.GELU())
     layer_list.append(
         torch.nn.Conv3d(channel_dims[-1], num_channels, kernel_size=1, bias=False)
     )
