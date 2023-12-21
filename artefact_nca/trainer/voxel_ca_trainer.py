@@ -79,7 +79,7 @@ class VoxelCATrainer(BaseTorchTrainer):
     torch_seed: Optional[int] = attr.ib(default=None)
     update_dataset: bool = attr.ib(default=True)
     seed: Optional[Any] = attr.ib(default=None)
-
+    num_channels = 0
     def post_dataset_setup(self):
         print("Post dataset setup!")
         print(
@@ -89,7 +89,9 @@ class VoxelCATrainer(BaseTorchTrainer):
 
         self.seed = self.dataset.get_seed(1)[0]  # Not really needed?
         self.dataset.visualize_seed()
-        self.num_samples: int = self.dataset.num_samples
+        self.num_samples = self.dataset.num_samples
+        if self.dataset.load_embeddings:
+            self.embedding_dim = self.dataset.embedding_dim
         self.num_categories = self.dataset.num_categories
         self.num_channels = self.dataset.num_channels
         self.model_config["living_channel_dim"] = self.num_categories
@@ -163,24 +165,6 @@ class VoxelCATrainer(BaseTorchTrainer):
         self.device = torch.device(
             "cuda:{}".format(self.device_id) if self.use_cuda else "cpu"
         )
-
-        if self.wandb:
-            wandb.init(
-                # set the wandb project where this run will be logged
-                project="NCA",
-                name=self.name,
-                # track hyperparameters and run metadata
-                config={
-                    "dataset": self.name.split('_')[0],
-                    "num_samples": self.num_samples,
-                    "epochs": self.epochs,
-                    "min_steps": self.min_steps,
-                    "max_steps": self.max_steps,
-                    "damage": self.damage,
-                    "num_hidden_channels": self.num_hidden_channels,
-                    "batch_size": self.batch_size,
-                    # embedding dim if merged
-                })
         self.setup()
         self.setup_logging_and_checkpoints()
         self._setup_dataset()
@@ -190,6 +174,33 @@ class VoxelCATrainer(BaseTorchTrainer):
         self.load(self.pretrained_path)
         self.setup_device()
         self.post_setup()
+        if self.wandb:
+            wandb.init(
+                # set the wandb project where this run will be logged
+                project="NCA",
+                name=self.name,
+                # track hyperparameters and run metadata
+                config={
+                    "dataset_name": self.name.split('_')[0],
+                    "num_samples": self.num_samples,
+                    "epochs": self.epochs,
+                    "batch_size": self.batch_size,
+                    "min_steps": self.min_steps,
+                    "max_steps": self.max_steps,
+                    "damage": self.damage,
+                    "num_hidden_channels": self.num_hidden_channels,
+                    "num_categories": self.num_categories,
+                    "num_embedding_channels": self.embedding_dim,
+                    "num_channels": self.num_channels,
+                    "dataset_conf": {"width": self.dataset.width, "depth": self.dataset.depth, "height": self.dataset.height,
+                                     "num_channels": self.dataset.num_channels, "living_channel": self.dataset.living_channel_dim,
+                                     "spawn_at_bottom": self.dataset.spawn_at_bottom,
+                                     "use_random_seed_block": self.dataset.use_random_seed_block, "sample_specific_pools": self.dataset.sample_specific_pools,
+                                     "sample_random_tree": self.dataset.sample_random_tree,
+                                     "load_embeddings": self.dataset.load_embeddings,
+                                     },
+                    "half_precision": self.half_precision
+                })
 
     def visualize(self, out):
         prev_batch = out["prev_batch"]
@@ -310,8 +321,8 @@ class VoxelCATrainer(BaseTorchTrainer):
         return out
 
     def train_iter(self, batch_size=32, iteration=0):
-        batch, targets, embedding, tree, indices = self.sample_batch(batch_size)
-        # print(f'Batch Sampled: tree {tree} | bs: {batch.size()} | ts: {targets.size()}')
+        batch, targets, embedding, tree, indices = self.sample_batch(batch_size) # embedding dim: (emd_dims, 2)
+        # print(f'Batch Sampled: tree {tree} | bs: {batch.size()} | ts: {targets.size()} | emb: {embedding.shape}')
 
         # _______________________________
         embedding_input = None

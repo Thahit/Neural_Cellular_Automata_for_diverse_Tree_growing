@@ -37,7 +37,7 @@ class VoxelDataset:
             pool_size: int = 48,
             sample_specific_pool: bool = False,
             random_tree_sampling: bool = True,
-            load_embeddings: bool = True,
+            load_embeddings: bool = False,
             num_hidden_channels: Any = 10,
             half_precision: bool = False,
             spawn_at_bottom: bool = True,
@@ -45,7 +45,7 @@ class VoxelDataset:
             device: Optional[Any] = None,
             input_shape: Optional[List[int]] = None,
             padding_by_power: Optional[int] = None,
-            verbose: bool = True
+            verbose: bool = False
     ):
         self.verbose = verbose
         self.entity_name = entity_name
@@ -87,8 +87,8 @@ class VoxelDataset:
             self.target_voxel = pad_target(self.target_voxel, p)
             self.current_power = current_power - 1
         self.num_categories = len(self.target_unique_val_dict)
+        self.num_samples = 1
         if self.input_shape is not None:
-            self.num_samples = 1
             self.width = self.input_shape[0]
             self.depth = self.input_shape[1]
             self.height = self.input_shape[2]
@@ -104,9 +104,11 @@ class VoxelDataset:
             self.targets = np.zeros(
                 (self.num_samples, self.pool_size, self.depth, self.height, self.width)
             ).astype(np.int)
-        self.embedding_channels = 0
+        self.embedding_dim = 0
         if self.load_embeddings:
             self.embeddings = self.setup_embeddings()
+        else:
+            self.embeddings = np.empty((self.num_samples, 2), dtype=np.float32)
         self.num_channels = num_hidden_channels + self.num_categories + 1
         self.living_channel_dim = self.num_categories
         self.half_precision = half_precision
@@ -185,7 +187,7 @@ class VoxelDataset:
         if embedding is not None and self.load_embeddings:
             self.embeddings[tree] = embedding
             if saveToFile:
-                np.savetxt(os.path.join(self.nbt_path, 'embeddings.csv'), self.embeddings, delimiter=',', fmt='%10.5f')
+                np.savetxt(os.path.join(self.nbt_path, 'embeddings.csv'), self.embeddings.reshape((self.num_samples, -1)), delimiter=',', fmt='%10.5f')
 
     def setup_embeddings(self):
         if self.nbt_path is None:
@@ -203,10 +205,11 @@ class VoxelDataset:
                 except Exception:
                     raise Exception("embeddings.txt does not exists in data folder")
                 shape = embeddings.shape
+                embeddings = embeddings.reshape((shape[0], -1, 2))
                 if shape[0] != self.num_samples:
                     raise ValueError("Number of embedding does not match number of loaded trees")
                 else:
-                    self.embedding_channels = shape[1]
+                    self.embedding_dim = shape[1]
                     if self.verbose: print(f'Loaded {shape[0]} trees with each {shape[1]} embeddings')
                     if self.verbose: print(embeddings)
                     return embeddings

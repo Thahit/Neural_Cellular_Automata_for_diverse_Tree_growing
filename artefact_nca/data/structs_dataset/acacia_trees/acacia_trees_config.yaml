@@ -1,23 +1,26 @@
 trainer:
-    name: AcaciaTrees
+    name: AcaciaTrees_8tree
     min_steps: 48
     max_steps: 65
     visualize_output: true
     device_id: 0
     use_cuda: true
     num_hidden_channels: 12
-    checkpoint_interval: 100
+    checkpoint_interval: 500
     wandb: true
-    epochs: 3000
+    epochs: 15001
     batch_size: 5
     model_config:
         normal_std: 0.1
         update_net_channel_dims: [64, 64]
     optimizer_config:
-        lr: 0.002
+        lr: 0.001
     dataset_config:
         pool_size: 32
         spawn_at_bottom: false
+        verbose: false
+        load_embeddings: false
+        sample_specific_pool: true
 
 defaults:
     - voxel

@@ -50,12 +50,16 @@ class VoxelCADatasetConfig(BaseDatasetConfig):
     load_coord: List[int] = dataclasses.field(default_factory=lambda: [50, 10, 10])
     load_entity_config: Dict[Any, Any] = dataclasses.field(default_factory=lambda: {})
     spawn_at_bottom: bool = False
+    random_tree_sampling: bool = True
+    sample_specific_pool: bool = False
+    load_embeddings: bool = False
     use_random_seed_block: bool = False
     input_shape: Optional[List[int]] = None
     num_hidden_channels: Any = II("trainer.num_hidden_channels")
     half_precision: Any = II("trainer.half_precision")
     pool_size: int = 32
     padding_by_power: Optional[int] = None
+    verbose: bool = False
 
 
 trainer_defaults = [{"model_config": "voxel"}, {"dataset_config": "voxel"}]

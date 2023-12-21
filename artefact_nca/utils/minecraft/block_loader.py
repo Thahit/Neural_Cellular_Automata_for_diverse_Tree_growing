@@ -98,7 +98,7 @@ def get_color_dict(unique_vals):
 
 
 def get_block_array(
-    nbt_data:list,
+    nbt_data: list,
     min_coords,
     max_coords,
     no_padding=True,
@@ -113,6 +113,7 @@ def get_block_array(
     # print(nbt_data[0]['Blocks'])
 
     num_trees = len(nbt_data)
+
     print(f'Num Trees: {num_trees}')
     unique_set = set()
     for i in range(len(nbt_data)):
