@@ -4,12 +4,15 @@ trainer:
     max_steps: 65
     visualize_output: true
     device_id: 0
-    use_cuda: true
+    use_cuda: false
     num_hidden_channels: 12
-    checkpoint_interval: 100
-    wandb: true
+    checkpoint_interval: 20
+    wandb: false
+    embedding_dim: 4
+    variational: true
     epochs: 3000
     batch_size: 5
+    var_lr : .001
     model_config:
         normal_std: 0.1
         update_net_channel_dims: [64, 64]

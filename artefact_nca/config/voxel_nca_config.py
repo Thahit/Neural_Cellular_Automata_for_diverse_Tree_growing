@@ -85,7 +85,9 @@ class VoxelCATrainerConfig(BaseTrainerConfig):
     early_stoppage: bool = True
     loss_threshold: float = 0.005
     wandb: bool = False
+    variational : bool = False
     embedding_dim: Optional[int] = None
+    var_lr: float = 0.0001
 
 
 config_defaults = [{"trainer": "voxel"}]

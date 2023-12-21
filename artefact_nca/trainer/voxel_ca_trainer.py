@@ -69,6 +69,7 @@ class VoxelCATrainer(BaseTorchTrainer):
     num_hidden_channels: Optional[int] = attr.ib(default=12)
     embedding_dim: Optional[int] = attr.ib(default=None)
     num_categories: Optional[int] = attr.ib(default=None)
+    variational: bool = attr.ib(default=False)
     use_dataset: bool = attr.ib(default=True)
     use_model: bool = attr.ib(default=True)
     half_precision: bool = attr.ib(default=False)
@@ -79,6 +80,7 @@ class VoxelCATrainer(BaseTorchTrainer):
     torch_seed: Optional[int] = attr.ib(default=None)
     update_dataset: bool = attr.ib(default=True)
     seed: Optional[Any] = attr.ib(default=None)
+    var_lr: float = attr.ib(default=None)
 
     def post_dataset_setup(self):
         print("Post dataset setup!")
@@ -237,12 +239,12 @@ class VoxelCATrainer(BaseTorchTrainer):
             out.append(x)
         return out[-1], out, life_masks
 
-    def update_dataset_function(self, out, tree, indices):
+    def update_dataset_function(self, out, tree, indices, embedding = None):
         with torch.no_grad():
             if self.half_precision:
-                self.dataset.update_dataset_function(out.detach().type(torch.float16), tree, indices)
+                self.dataset.update_dataset_function(out.detach().type(torch.float16), tree, indices, embedding)
             else:
-                self.dataset.update_dataset_function(out.detach(), tree, indices)
+                self.dataset.update_dataset_function(out.detach(), tree, indices, embedding)
 
     def iou(self, out, targets):
         targets = torch.clamp(targets, min=0, max=1)
@@ -254,7 +256,7 @@ class VoxelCATrainer(BaseTorchTrainer):
         o = (union - intersect) / (union + 1e-8)
         return o
 
-    def get_loss(self, x, targets):
+    def get_loss(self, x, targets, embedding_params = None):
         iou_loss = 0
         if self.use_iou_loss:
             iou_loss = self.iou(x, targets)
@@ -281,8 +283,14 @@ class VoxelCATrainer(BaseTorchTrainer):
                 weight=weight.to(self.device),
             )
 
+        variational_loss = 0
+        
+        if self.variational:# kl div
+            variational_loss = - 0.5 * torch.sum(1+ embedding_params[1] - embedding_params[0].pow(2) - embedding_params[1].exp())
+            
         loss = (0.5 * class_loss + 0.5 * alive_loss + iou_loss) / 3.0
-        return loss, iou_loss, class_loss
+        loss += variational_loss*.5
+        return loss, iou_loss, class_loss, variational_loss
 
     def get_loss_for_single_instance(self, x, rearrange_input=False):
         if rearrange_input:
@@ -290,37 +298,56 @@ class VoxelCATrainer(BaseTorchTrainer):
         batch, targets, embedding, tree, indices = self.sample_batch(1)
         return self.get_loss(x, targets)
 
-    def train_func(self, x, targets, embeddings=None, steps=1):
+    def train_func(self, x, targets, embeddings=None, embedding_params = None, steps=1):
         self.optimizer.zero_grad()
         # print(targets[0, 3:4, 3:5, 4:7])
         # print(x[0, :self.num_categories, 3:4, 3:5, 4:7])
         x = self.model(x, embeddings=embeddings, steps=steps, rearrange_output=False)
 
-        loss, iou_loss, class_loss = self.get_loss(x, targets)
+        loss, iou_loss, class_loss, var_loss = self.get_loss(x, targets, embedding_params)
 
+        
+        
         loss.backward()
         self.optimizer.step()
         self.scheduler.step()
         x = rearrange(x, "b c d h w -> b d h w c")
         out = {
             "out": x,
-            "metrics": {"loss": loss.item(), "iou_loss": iou_loss.item(), "class_loss": class_loss},
+            "metrics": {"loss": loss.item(), "iou_loss": iou_loss.item(), "class_loss": class_loss, "var_loss": var_loss},
             "loss": loss,
         }
+        
+        if self.variational:# optimizer cannot do this as it is nor part of the model and change
+             with torch.no_grad():
+                embedding_params -= self.var_lr * embedding_params.grad
         return out
 
     def train_iter(self, batch_size=32, iteration=0):
         batch, targets, embedding, tree, indices = self.sample_batch(batch_size)
         # print(f'Batch Sampled: tree {tree} | bs: {batch.size()} | ts: {targets.size()}')
-
+        embedding = embedding.reshape(2,-1)# dont come in correct shape
         # _______________________________
         embedding_input = None
         if self.embedding_dim:
-            print('Embedding dim active')
-            embeddings = torch.tensor([i for i in range(4)])  # dummy, wil be changed to correct code
-            shape_to_emulate = [num for num in batch.shape]
-            shape_to_emulate[-1] = 1
-            embedding_input = embeddings.repeat(shape_to_emulate)
+            #dummy
+            #if embedding != None:# remove
+            #embedding = torch.Tensor([[2]* self.embedding_dim for _ in range(2)])
+            
+            embedding_input = torch.normal(mean = 0, std = 1, size =(self.batch_size, self.embedding_dim))
+            if self.variational:
+                embedding = torch.Tensor(embedding).to(self.device)
+                embedding.requires_grad = True
+                embedding_input *= torch.exp(0.5 * embedding[1])#var
+                embedding_input += embedding[0]#mean
+                
+            #shape_to_emulate = [num for num in batch.shape]#batch channel, l, h ,w
+            shape_to_emulate = [ dim_i for dim_i in batch.shape[1:-1]]
+            shape_to_emulate.extend([-1, -1])
+            #shape_to_emulate[:2] = embedding_input.shape
+            embedding_input = embedding_input.expand(shape_to_emulate).to(self.device)#l,h,w, batch, channel
+            embedding_input = embedding_input.permute(-2, 0,1,2, -1)#back to b d h w c
+            # have to permute cannot do this direclty
         # _____________________________________
 
         if self.use_sample_pool:
@@ -341,15 +368,18 @@ class VoxelCATrainer(BaseTorchTrainer):
 
         steps = np.random.randint(self.min_steps, self.max_steps)
         if self.half_precision:
-            with torch.cuda.amp.autocast():
-                out_dict = self.train_func(batch, targets, embedding_input, steps)
+            with torch.cuda.amp.autocast():#unused?
+                out_dict = self.train_func(batch, targets, embeddings = embedding_input, embedding_params = embedding, steps=steps)
         else:
             # print(f'Batch Input: tree {tree} | bs: {batch.size()} | ts: {targets.size()} | steps: {steps}')
-            out_dict = self.train_func(batch, targets, embedding_input, steps)
+            out_dict = self.train_func(batch, targets, embeddings = embedding_input, embedding_params = embedding, steps=steps)
         out, loss, metrics = out_dict["out"], out_dict["loss"], out_dict["metrics"]
 
         if self.update_dataset and self.use_sample_pool:
-            self.update_dataset_function(out, tree, indices)
+            if self.variational:
+                embedding=embedding.reshape((1,-1)).detach().numpy()
+            self.update_dataset_function(out, tree, indices, embedding= embedding)
         out_dict["prev_batch"] = batch.detach().cpu().numpy()
         out_dict["post_batch"] = out.detach().cpu().numpy()
+        
         return out_dict

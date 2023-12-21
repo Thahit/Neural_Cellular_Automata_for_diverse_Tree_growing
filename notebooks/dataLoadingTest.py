@@ -12,8 +12,8 @@ from artefact_nca.trainer.voxel_ca_trainer import VoxelCATrainer
 from artefact_nca.utils.minecraft import MinecraftClient, convert_to_color, Blockloader, spawn_entities
 from artefact_nca.utils.minecraft.voxel_utils import replace_colors
 
-# base_nbt_path = "/home/thahit/github/Neural_Cellular_Automata_for_diverse_Tree_growing/artefact_nca/data/structs_dataset/acacia_trees"
-base_nbt_path = "C:/Users/cedri/Desktop/Code/ETH/DLProject/Neural_Cellular_Automata_for_diverse_Tree_growing/artefact_nca/data/structs_dataset/acacia_trees"
+base_nbt_path = "/home/thahit/github/Neural_Cellular_Automata_for_diverse_Tree_growing/artefact_nca/data/structs_dataset/acacia_trees"
+# base_nbt_path = "C:/Users/cedri/Desktop/Code/ETH/DLProject/Neural_Cellular_Automata_for_diverse_Tree_growing/artefact_nca/data/structs_dataset/acacia_trees"
 
 
 def visualize_output(ct, out):
@@ -53,4 +53,3 @@ if __name__ == '__main__':
     #
     #     plt.show()
     ct.train()
-    torch.save({"model": ct.model.state_dict()}, "test_model.pt")
