@@ -10,11 +10,11 @@ from einops import rearrange, repeat
 from artefact_nca.base.base_torch_model import BaseTorchModel
 
 
-def make_sequental(num_channels, channel_dims, embedding_dim= None):
+def make_sequental(num_channels, channel_dims, embedding_dim=None):
     conv3d = torch.nn.Conv3d(num_channels * 3 + (embedding_dim if embedding_dim else 0), channel_dims[0], kernel_size=1)
     gelu = torch.nn.GELU()
     layer_list = [conv3d, gelu]
-        
+
     for i in range(1, len(channel_dims)):
         layer_list.append(
             torch.nn.Conv3d(channel_dims[i - 1], channel_dims[i], kernel_size=1)
@@ -28,7 +28,7 @@ def make_sequental(num_channels, channel_dims, embedding_dim= None):
 
 class VoxelPerceptionNet(torch.nn.Module):
     def __init__(
-        self, num_channels, normal_std=0.02, use_normal_init=True, zero_bias=True
+            self, num_channels, normal_std=0.02, use_normal_init=True, zero_bias=True
     ):
         super(VoxelPerceptionNet, self).__init__()
         self.num_channels = num_channels
@@ -62,20 +62,20 @@ class VoxelPerceptionNet(torch.nn.Module):
 
 class SmallerVoxelUpdateNet(torch.nn.Module):
     def __init__(
-        self,
-        num_channels: int = 16,
-        channel_dims=[64, 64],
-        normal_std=0.02,
-        use_normal_init=True,
-        zero_bias=True,
-        embedding_dim: Optional[int] = None,#new
+            self,
+            num_channels: int = 16,
+            channel_dims=[64, 64],
+            normal_std=0.02,
+            use_normal_init=True,
+            zero_bias=True,
+            embedding_dim: Optional[int] = None,  # new
 
     ):
         super(SmallerVoxelUpdateNet, self).__init__()
-        self.embedding_dim = embedding_dim 
+        self.embedding_dim = embedding_dim
 
         self.out = make_sequental(num_channels, channel_dims, embedding_dim)
-        
+
         def init_weights(m):
             if isinstance(m, torch.nn.Conv3d):
                 torch.nn.init.normal_(m.weight, std=normal_std)
@@ -89,28 +89,28 @@ class SmallerVoxelUpdateNet(torch.nn.Module):
             with torch.no_grad():
                 self.apply(init_weights)
 
-    def forward(self, x, emeddings = None):
+    def forward(self, x, emeddings=None):
         if emeddings != None:
-            #concat with embeddings
-            x = torch.cat((x, emeddings), 1)#batch, embedd+channel, cordinates(3d)
+            # concat with embeddings
+            x = torch.cat((x, emeddings), 1)  # batch, embedd+channel, cordinates(3d)
         return self.out(x)
 
 
 class VoxelCAModel(BaseTorchModel):
     def __init__(
-        self,
-        alpha_living_threshold: float = 0.1,
-        cell_fire_rate: float = 0.5,
-        step_size: float = 1.0,
-        perception_requires_grad: bool = True,
-        living_channel_dim: Optional[int] = None,
-        num_hidden_channels: Optional[int] = None,
-        normal_std: float = 0.0002,
-        use_bce_loss: bool = False,
-        use_normal_init: bool = True,
-        zero_bias: bool = True,
-        update_net_channel_dims: typing.List[int] = [32, 32],
-        embedding_dim: Optional[int] = None,
+            self,
+            alpha_living_threshold: float = 0.1,
+            cell_fire_rate: float = 0.5,
+            step_size: float = 1.0,
+            perception_requires_grad: bool = True,
+            living_channel_dim: Optional[int] = None,
+            num_hidden_channels: Optional[int] = None,
+            normal_std: float = 0.0002,
+            use_bce_loss: bool = False,
+            use_normal_init: bool = True,
+            zero_bias: bool = True,
+            update_net_channel_dims: typing.List[int] = [32, 32],
+            embedding_dim: Optional[int] = None,
     ):
         super(VoxelCAModel, self).__init__()
         self.num_hidden_channels = num_hidden_channels
@@ -126,7 +126,7 @@ class VoxelCAModel(BaseTorchModel):
         self.use_normal_init = use_normal_init
         self.zero_bias = zero_bias
         self.num_channels = self.num_hidden_channels + self.num_categories + 1
-        self.embedding_dim = embedding_dim#NEW
+        self.embedding_dim = embedding_dim  # NEW
         print("Embedding dimension: ", self.embedding_dim)
         self.perception_net = VoxelPerceptionNet(
             self.num_channels,
@@ -149,7 +149,7 @@ class VoxelCAModel(BaseTorchModel):
 
     def alive(self, x):
         return F.max_pool3d(
-            x[:, self.living_channel_dim : self.living_channel_dim + 1, :, :, :],
+            x[:, self.living_channel_dim: self.living_channel_dim + 1, :, :, :],
             kernel_size=3,
             stride=1,
             padding=1,
@@ -175,7 +175,7 @@ class VoxelCAModel(BaseTorchModel):
             x[:, :1, :, :, :][life_mask == 0.0] += torch.tensor(1.0).to(self.device)
         return x, life_mask
 
-    def forward(self, x, steps=1, embeddings = None, rearrange_output=True, return_life_mask=False):
+    def forward(self, x, steps=1, embeddings=None, rearrange_output=True, return_life_mask=False):
         x = rearrange(x, "b d h w c -> b c d h w")
         if embeddings != None:
             embeddings = rearrange(embeddings, "b d h w c -> b c d h w")
