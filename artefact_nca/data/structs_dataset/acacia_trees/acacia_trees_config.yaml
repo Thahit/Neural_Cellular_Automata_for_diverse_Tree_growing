@@ -6,7 +6,7 @@ trainer:
     device_id: 0
     use_cuda: false
     num_hidden_channels: 12
-    checkpoint_interval: 20
+    checkpoint_interval: 2
     wandb: false
     embedding_dim: 4
     variational: true
@@ -15,7 +15,8 @@ trainer:
     var_lr : .001
     model_config:
         normal_std: 0.1
-        update_net_channel_dims: [64, 64]
+        update_net_channel_dims: [32, 32]
+        extra_layers:  1
     optimizer_config:
         lr: 0.002
     dataset_config:

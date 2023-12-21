@@ -10,10 +10,14 @@ from einops import rearrange, repeat
 from artefact_nca.base.base_torch_model import BaseTorchModel
 
 
-def make_sequental(num_channels, channel_dims, embedding_dim= None):
+def make_sequental(num_channels, channel_dims, embedding_dim= None, extra_layers=0):
     conv3d = torch.nn.Conv3d(num_channels * 3 + (embedding_dim if embedding_dim else 0), channel_dims[0], kernel_size=1)
     relu = torch.nn.ReLU()
     layer_list = [conv3d, relu]
+    for i in range(1, extra_layers):
+        layer_list.append(torch.nn.Conv3d(channel_dims[0], channel_dims[0], kernel_size=1))
+        layer_list.append(torch.nn.ReLU())
+        
     for i in range(1, len(channel_dims)):
         layer_list.append(
             torch.nn.Conv3d(channel_dims[i - 1], channel_dims[i], kernel_size=1)
@@ -68,11 +72,13 @@ class SmallerVoxelUpdateNet(torch.nn.Module):
         use_normal_init=True,
         zero_bias=True,
         embedding_dim: Optional[int] = None,#new
+        extra_layers: int = 0,
     ):
         super(SmallerVoxelUpdateNet, self).__init__()
         self.embedding_dim = embedding_dim 
+        self.extra_layers = extra_layers
 
-        self.out = make_sequental(num_channels, channel_dims, embedding_dim)
+        self.out = make_sequental(num_channels, channel_dims, embedding_dim, extra_layers= self.extra_layers)
         
         def init_weights(m):
             if isinstance(m, torch.nn.Conv3d):
@@ -108,13 +114,15 @@ class VoxelCAModel(BaseTorchModel):
         use_normal_init: bool = True,
         zero_bias: bool = True,
         update_net_channel_dims: typing.List[int] = [32, 32],
-        embedding_dim: Optional[int] = None
+        embedding_dim: Optional[int] = None,
+        extra_layers: int = 0,
     ):
         super(VoxelCAModel, self).__init__()
         self.num_hidden_channels = num_hidden_channels
         self.update_net_channel_dims = update_net_channel_dims
         self.living_channel_dim = living_channel_dim
         self.num_categories = self.living_channel_dim
+        self.extra_layers = extra_layers
         self.alpha_living_threshold = alpha_living_threshold
         self.cell_fire_rate = cell_fire_rate
         self.step_size = step_size
@@ -142,6 +150,7 @@ class VoxelCAModel(BaseTorchModel):
             use_normal_init=self.use_normal_init,
             zero_bias=self.zero_bias,
             embedding_dim=self.embedding_dim,
+            extra_layers = self.extra_layers
         )
         self.tanh = torch.nn.Tanh()
 

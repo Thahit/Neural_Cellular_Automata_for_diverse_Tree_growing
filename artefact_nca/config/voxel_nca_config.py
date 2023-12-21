@@ -29,6 +29,7 @@ class VoxelCAModelConfig(BaseModelConfig):
     use_bce_loss: Any = II("trainer.use_bce_loss")
     use_normal_init: bool = True
     zero_bias: bool = True
+    extra_layers: int = 0
     embedding_dim: Optional[int] = II("trainer.embedding_dim")
     update_net_channel_dims: List[int] = dataclasses.field(
         default_factory=lambda: [32, 32]
