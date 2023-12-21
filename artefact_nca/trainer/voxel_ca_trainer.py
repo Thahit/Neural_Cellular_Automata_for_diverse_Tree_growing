@@ -373,13 +373,14 @@ class VoxelCATrainer(BaseTorchTrainer):
     def train_iter(self, batch_size=32, iteration=0, save_emb=False):
         batch, targets, embedding, tree, indices = self.sample_batch(batch_size)
         # print(f'Batch Sampled: tree {tree} | bs: {batch.size()} | ts: {targets.size()}')
-        embedding = embedding.reshape(2,-1)# dont come in correct shape
+        
         # _______________________________
         embedding_input = None
         if self.embedding_dim:
             #dummy
             #if embedding != None:# remove
             #embedding = torch.Tensor([[2]* self.embedding_dim for _ in range(2)])
+            embedding = embedding.reshape(2,-1)# dont come in correct shape
             
             embedding_input = torch.normal(mean = 0, std = 1, size =(self.batch_size, self.embedding_dim))
             if self.variational:
@@ -425,7 +426,10 @@ class VoxelCATrainer(BaseTorchTrainer):
         if self.update_dataset and self.use_sample_pool:
             if self.variational:
                 embedding=embedding.reshape((1,-1)).detach().numpy()
-            self.update_dataset_function(out, tree, indices, embedding= embedding, save_emb=save_emb)
+                self.update_dataset_function(out, tree, indices, embedding= embedding, save_emb=save_emb)
+            else:
+                self.update_dataset_function(out, tree, indices)
+            
         out_dict["prev_batch"] = batch.detach().cpu().numpy()
         out_dict["post_batch"] = out.detach().cpu().numpy()
         
