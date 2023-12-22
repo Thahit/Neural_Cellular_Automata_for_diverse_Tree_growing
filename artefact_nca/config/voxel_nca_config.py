@@ -50,12 +50,17 @@ class VoxelCADatasetConfig(BaseDatasetConfig):
     load_coord: List[int] = dataclasses.field(default_factory=lambda: [50, 10, 10])
     load_entity_config: Dict[Any, Any] = dataclasses.field(default_factory=lambda: {})
     spawn_at_bottom: bool = False
+    random_tree_sampling: bool = True
+    sample_specific_pool: bool = False
+    load_embeddings: bool = II("trainer.variational")
+    embedding_dim: Optional[int] = II("trainer.embedding_dim")
     use_random_seed_block: bool = False
     input_shape: Optional[List[int]] = None
     num_hidden_channels: Any = II("trainer.num_hidden_channels")
     half_precision: Any = II("trainer.half_precision")
     pool_size: int = 32
     padding_by_power: Optional[int] = None
+    verbose: bool = False
 
 
 trainer_defaults = [{"model_config": "voxel"}, {"dataset_config": "voxel"}]
@@ -72,6 +77,7 @@ class VoxelCATrainerConfig(BaseTrainerConfig):
     half_precision: bool = False
     min_steps: int = 48
     max_steps: int = 64
+    clip_gradients: bool = False
     damage: bool = False
     num_damaged: int = 2
     damage_radius_denominator: int = 5
@@ -85,7 +91,10 @@ class VoxelCATrainerConfig(BaseTrainerConfig):
     early_stoppage: bool = True
     loss_threshold: float = 0.005
     wandb: bool = False
+    variational : bool = False
     embedding_dim: Optional[int] = None
+    var_lr: float = 0.0001
+    var_loss_weight:float = 1.
 
 
 config_defaults = [{"trainer": "voxel"}]

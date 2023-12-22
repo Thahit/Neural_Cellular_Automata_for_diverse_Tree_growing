@@ -13,8 +13,8 @@ from artefact_nca.utils.minecraft import MinecraftClient, convert_to_color, Bloc
 from artefact_nca.utils.minecraft.voxel_utils import replace_colors
 
 # base_nbt_path = "/home/thahit/github/Neural_Cellular_Automata_for_diverse_Tree_growing/artefact_nca/data/structs_dataset/acacia_trees"
-# base_nbt_path = "C:/Users/cedri/Desktop/Code/ETH/DLProject/Neural_Cellular_Automata_for_diverse_Tree_growing/artefact_nca/data/structs_dataset/acacia_trees"
-base_nbt_path = "/mnt/c/Users/olezh/ETH/Deep Learning/Neural_Cellular_Automata_for_diverse_Tree_growing/artefact_nca/data/structs_dataset/acacia_trees"
+base_nbt_path = "C:/Users/cedri/Desktop/Code/ETH/DLProject/Neural_Cellular_Automata_for_diverse_Tree_growing/artefact_nca/data/structs_dataset/acacia_trees"
+# base_nbt_path = "/mnt/c/Users/olezh/ETH/Deep Learning/Neural_Cellular_Automata_for_diverse_Tree_growing/artefact_nca/data/structs_dataset/acacia_trees"
 
 
 def visualize_output(ct, out):
@@ -30,7 +30,8 @@ def visualize_output(ct, out):
 
 
 if __name__ == '__main__':
-    nbt_path = "{}/acacia_001.nbt".format(base_nbt_path)
+    # nbt_path = "{}/acacia_trees/acacia_003.nbt".format(base_nbt_path)
+    nbt_path = "{}/acacia_trees".format(base_nbt_path)
     # blocks, unique_vals, target, color_dict, unique_val_dict = MinecraftClient.load_entity("trees",
     #                                                                                        nbt_path=base_nbt_path,
     #                                                                                        load_coord=(0, 0, 0),
@@ -38,9 +39,9 @@ if __name__ == '__main__':
     #                                                                                            'load_range': (
     #                                                                                                8, 15, 8)})
     ct = VoxelCATrainer.from_config(
-        "{}/acacia_trees_config.yaml".format(base_nbt_path),
+        "{}/acacia_trees/acacia_trees_config.yaml".format(base_nbt_path),
         config={
-            "dataset_config": {"nbt_path": base_nbt_path},
+            "dataset_config": {"nbt_path": nbt_path},
         }
     )
     # target = ct.dataset.targets[0, 0].numpy()

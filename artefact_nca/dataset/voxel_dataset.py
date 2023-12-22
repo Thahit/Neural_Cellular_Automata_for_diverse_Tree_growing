@@ -7,8 +7,11 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 import torch
-from einops import repeat
+from IPython.core.display import clear_output
+from einops import repeat, rearrange
+from matplotlib import pyplot as plt
 
+from artefact_nca.utils.minecraft import replace_colors
 from artefact_nca.utils.minecraft.block_loader import get_color_dict
 from artefact_nca.utils.minecraft.minecraft_client import MinecraftClient
 
@@ -33,7 +36,8 @@ class VoxelDataset:
             load_entity_config: Dict[Any, Any] = {},
             pool_size: int = 48,
             sample_specific_pool: bool = False,
-            load_embeddings: bool = True,
+            load_embeddings: bool = False,
+            embedding_dim: Optional[int] = None,
             num_hidden_channels: Any = 10,
             half_precision: bool = False,
             spawn_at_bottom: bool = True,
@@ -41,7 +45,7 @@ class VoxelDataset:
             device: Optional[Any] = None,
             input_shape: Optional[List[int]] = None,
             padding_by_power: Optional[int] = None,
-            verbose: bool = True
+            verbose: bool = False
     ):
         self.verbose = verbose
         self.entity_name = entity_name
@@ -82,8 +86,8 @@ class VoxelDataset:
             self.target_voxel = pad_target(self.target_voxel, p)
             self.current_power = current_power - 1
         self.num_categories = len(self.target_unique_val_dict)
+        self.num_samples = 1
         if self.input_shape is not None:
-            self.num_samples = 1
             self.width = self.input_shape[0]
             self.depth = self.input_shape[1]
             self.height = self.input_shape[2]
@@ -99,9 +103,8 @@ class VoxelDataset:
             self.targets = np.zeros(
                 (self.num_samples, self.pool_size, self.depth, self.height, self.width)
             ).astype(np.int)
-        self.embedding_channels = 0
-        if self.load_embeddings:
-            self.embeddings = self.setup_embeddings()
+        self.embedding_dim = embedding_dim
+        self.embeddings = self.setup_embeddings()
         self.num_channels = num_hidden_channels + self.num_categories + 1
         self.living_channel_dim = self.num_categories
         self.half_precision = half_precision
@@ -116,6 +119,7 @@ class VoxelDataset:
         self.data = torch.from_numpy(self.data).to(device)
         self.targets = torch.from_numpy(self.targets).to(device)
         self.targets = self.targets.long()
+        self.embeddings = torch.from_numpy(self.embeddings).to(device)
 
     def get_seed(self, batch_size=1):
         if self.sample_specific_pools:
@@ -125,17 +129,37 @@ class VoxelDataset:
         # random_class_arr = np.eye(self.num_categories)[np.random.choice(np.arange(1,self.num_categories), batch_size)]
         randint = np.random.randint(1, self.num_categories, batch_size)
         if self.spawn_at_bottom:
-            seed[:, :, self.depth // 2, 0, self.width // 2, self.num_categories:] = 1.0
+            seed[:, :, self.depth // 3: 2*self.depth // 3, 0:3, self.width // 3: 2*self.width // 3, self.num_categories:] = 1.0
             if self.use_random_seed_block:
                 for i in range(randint.shape[0]):
-                    seed[:, i, self.depth // 2, 0, self.width // 2, randint[i]] = 1.0
+                    seed[:, i, self.depth // 3: 2*self.depth // 3, 0:3, self.width // 3: 2*self.width // 3, randint[i]] = 1.0
         else:
-            seed[:, :, self.depth // 2, self.height // 2, self.width // 2, self.num_categories:
-            ] = 1.0
+            seed[:, :, self.depth // 3: 2*self.depth // 3, self.height // 3: 2*self.height // 3, self.width // 3: 2*self.width // 3, self.num_categories:] = 1.0
             if self.use_random_seed_block:
                 for i in range(randint.shape[0]):
-                    seed[:, i, self.depth // 2, self.height // 2, self.width // 2, randint[i]] = 1.0
+                    seed[:, i, self.depth // 3: 2*self.depth // 3, self.height // 3: 2*self.height // 3, self.width // 3: 2*self.width // 3, randint[i]] = 1.0
         return seed
+
+    def visualize_seed(self):
+        if self.verbose:
+            post_batch = rearrange(self.data[0], "b d h w c -> b w d h c")
+            post_batch = replace_colors(
+                np.argmax(post_batch[:, :, :, :, : self.num_categories], -1),
+                self.target_color_dict,
+            )
+            clear_output()
+            vis1 = post_batch[:5]
+            num_cols = len(vis1)
+            num_rows = 1
+            vis1[vis1 == "_empty"] = None
+            fig = plt.figure(figsize=(15, 10))
+
+            for i in range(1, num_cols + 1):
+                ax1 = fig.add_subplot(num_rows, num_cols, i, projection="3d")
+                ax1.voxels(vis1[i - 1], facecolors=vis1[i - 1], edgecolor="k")
+                ax1.set_title("Pool {}".format(i))
+            plt.subplots_adjust(bottom=0.005)
+            plt.show()
 
     def sample(self, tree, batch_size):
         indices = random.sample(range(self.pool_size), batch_size)
@@ -154,7 +178,7 @@ class VoxelDataset:
         if embedding is not None and self.load_embeddings:
             self.embeddings[tree] = embedding
             if saveToFile:
-                np.savetxt(os.path.join(self.nbt_path, 'embeddings.csv'), self.embeddings, delimiter=',', fmt='%10.5f')
+                np.savetxt(os.path.join(self.nbt_path, 'embeddings.csv'), self.embeddings.detach().cpu().numpy().reshape((self.num_samples, -1)), delimiter=',', fmt='%10.5f')
 
     def setup_embeddings(self):
         if self.nbt_path is None:
@@ -166,16 +190,21 @@ class VoxelDataset:
                 p = Path(self.nbt_path)
                 if not p.exists():
                     raise Exception("failed to find the data folder")
-
-                try:
-                    embeddings = np.genfromtxt(os.path.join(self.nbt_path, 'embeddings.csv'), delimiter=",").astype(np.float32)
-                except Exception:
-                    raise Exception("embeddings.txt does not exists in data folder")
-                shape = embeddings.shape
-                if shape[0] != self.num_samples:
-                    raise ValueError("Number of embedding does not match number of loaded trees")
+                if self.load_embeddings:
+                    try:
+                        embeddings = np.genfromtxt(os.path.join(self.nbt_path, 'embeddings.csv'), delimiter=",").astype(np.float32)
+                    except Exception:
+                        raise Exception("embeddings.txt does not exists in data folder")
+                    shape = embeddings.shape
+                    embeddings = embeddings.reshape((shape[0], 2, -1))
+                    if shape[0] != self.num_samples:
+                        raise ValueError("Number of embedding does not match number of loaded trees")
+                    elif embeddings.shape[2] != self.embedding_dim:
+                        raise ValueError("Number of embedding does not match num embeddings is csv file")
+                    else:
+                        if self.verbose: print(f'Loaded {shape[0]} trees with each {shape[1]} embeddings')
+                        if self.verbose: print(embeddings)
+                        return embeddings
                 else:
-                    self.embedding_channels = shape[1]
-                    if self.verbose: print(f'Loaded {shape[0]} trees with each {shape[1]} embeddings')
-                    if self.verbose: print(embeddings)
+                    embeddings = np.random.normal(size=(self.num_samples, 2, self.embedding_dim))
                     return embeddings
