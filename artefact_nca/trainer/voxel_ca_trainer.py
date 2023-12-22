@@ -98,8 +98,8 @@ class VoxelCATrainer(BaseTorchTrainer):
         self.seed = self.dataset.get_seed(1)[0]  # Not really needed?
         self.dataset.visualize_seed()
         self.num_samples = self.dataset.num_samples
-        if self.dataset.load_embeddings:
-            self.embedding_dim = self.dataset.embedding_dim
+        # if self.dataset.load_embeddings:
+        #     self.embedding_dim = self.dataset.embedding_dim
         self.num_categories = self.dataset.num_categories
         self.num_channels = self.dataset.num_channels
         self.model_config["living_channel_dim"] = self.num_categories
@@ -200,6 +200,9 @@ class VoxelCATrainer(BaseTorchTrainer):
                     "num_categories": self.num_categories,
                     "num_embedding_channels": self.embedding_dim,
                     "num_channels": self.num_channels,
+                    "variational": self.variational,
+                    "var_lr": self.var_lr,
+                    "var_loss_weight": self.var_loss_weight,
                     "dataset_conf": {"width": self.dataset.width, "depth": self.dataset.depth,
                                      "height": self.dataset.height,
                                      "num_channels": self.dataset.num_channels,
@@ -390,19 +393,16 @@ class VoxelCATrainer(BaseTorchTrainer):
 
     def train_iter(self, batch_size=32, iteration=0, save_emb=False):
         batch, targets, embedding, tree, indices = self.sample_batch(batch_size)
-        # print(f'Batch Sampled: tree {tree} | bs: {batch.size()} | ts: {targets.size()} | emb: {embedding_shape}')
+        # print(f'Batch Sampled: tree {tree} | bs: {batch.size()} | ts: {targets.size()} | emb: {embedding}')
 
         # _______________________________
         embedding_input = None
         if self.embedding_dim:
-            # dummy
-            # if embedding != None:# remove
-            # embedding = torch.Tensor([[2]* self.embedding_dim for _ in range(2)])
+
             embedding = embedding.reshape(2, -1)  # dont come in correct shape
 
-            embedding_input = torch.normal(mean=0, std=1, size=(self.batch_size, self.embedding_dim))
+            embedding_input = torch.normal(mean=0, std=1, size=(self.batch_size, self.embedding_dim)).to(self.device)
             if self.variational:
-                embedding = torch.Tensor(embedding).to(self.device)
                 embedding.requires_grad = True
                 embedding_input *= torch.exp(0.5 * embedding[1])  # var
                 embedding_input += embedding[0]  # mean
@@ -411,7 +411,7 @@ class VoxelCATrainer(BaseTorchTrainer):
             shape_to_emulate = [dim_i for dim_i in batch.shape[1:-1]]
             shape_to_emulate.extend([-1, -1])
             # shape_to_emulate[:2] = embedding_input.shape
-            embedding_input = embedding_input.expand(shape_to_emulate).to(self.device)  # l,h,w, batch, channel
+            embedding_input = embedding_input.expand(shape_to_emulate)  # l,h,w, batch, channel
             embedding_input = embedding_input.permute(-2, 0, 1, 2, -1)  # back to b d h w c
             # have to permute cannot do this direclty
         # _____________________________________
@@ -445,7 +445,7 @@ class VoxelCATrainer(BaseTorchTrainer):
 
         if self.update_dataset and self.use_sample_pool:
             if self.variational:
-                embedding = embedding.reshape((1, -1)).detach().numpy()
+                embedding.grad.zero_()
                 self.update_dataset_function(out, tree, indices, embedding=embedding, save_emb=save_emb)
             else:
                 self.update_dataset_function(out, tree, indices)

@@ -38,6 +38,7 @@ class VoxelDataset:
             sample_specific_pool: bool = False,
             random_tree_sampling: bool = True,
             load_embeddings: bool = False,
+            embedding_dim: Optional[int] = None,
             num_hidden_channels: Any = 10,
             half_precision: bool = False,
             spawn_at_bottom: bool = True,
@@ -104,11 +105,8 @@ class VoxelDataset:
             self.targets = np.zeros(
                 (self.num_samples, self.pool_size, self.depth, self.height, self.width)
             ).astype(np.int)
-        self.embedding_dim = 0
-        if self.load_embeddings:
-            self.embeddings = self.setup_embeddings()
-        else:
-            self.embeddings = np.empty((self.num_samples, 2), dtype=np.float32)
+        self.embedding_dim = embedding_dim
+        self.embeddings = self.setup_embeddings()
         self.num_channels = num_hidden_channels + self.num_categories + 1
         self.living_channel_dim = self.num_categories
         self.half_precision = half_precision
@@ -123,6 +121,7 @@ class VoxelDataset:
         self.data = torch.from_numpy(self.data).to(device)
         self.targets = torch.from_numpy(self.targets).to(device)
         self.targets = self.targets.long()
+        self.embeddings = torch.from_numpy(self.embeddings).to(device)
 
     def get_seed(self, batch_size=1):
         if self.sample_specific_pools:
@@ -187,7 +186,7 @@ class VoxelDataset:
         if embedding is not None and self.load_embeddings:
             self.embeddings[tree] = embedding
             if saveToFile:
-                np.savetxt(os.path.join(self.nbt_path, 'embeddings.csv'), self.embeddings.reshape((self.num_samples, -1)), delimiter=',', fmt='%10.5f')
+                np.savetxt(os.path.join(self.nbt_path, 'embeddings.csv'), self.embeddings.detach().cpu().numpy().reshape((self.num_samples, -1)), delimiter=',', fmt='%10.5f')
 
     def setup_embeddings(self):
         if self.nbt_path is None:
@@ -199,17 +198,21 @@ class VoxelDataset:
                 p = Path(self.nbt_path)
                 if not p.exists():
                     raise Exception("failed to find the data folder")
-
-                try:
-                    embeddings = np.genfromtxt(os.path.join(self.nbt_path, 'embeddings.csv'), delimiter=",").astype(np.float32)
-                except Exception:
-                    raise Exception("embeddings.txt does not exists in data folder")
-                shape = embeddings.shape
-                embeddings = embeddings.reshape((shape[0], -1, 2))
-                if shape[0] != self.num_samples:
-                    raise ValueError("Number of embedding does not match number of loaded trees")
+                if self.load_embeddings:
+                    try:
+                        embeddings = np.genfromtxt(os.path.join(self.nbt_path, 'embeddings.csv'), delimiter=",").astype(np.float32)
+                    except Exception:
+                        raise Exception("embeddings.txt does not exists in data folder")
+                    shape = embeddings.shape
+                    embeddings = embeddings.reshape((shape[0], 2, -1))
+                    if shape[0] != self.num_samples:
+                        raise ValueError("Number of embedding does not match number of loaded trees")
+                    elif embeddings.shape[2] != self.embedding_dim:
+                        raise ValueError("Number of embedding does not match num embeddings is csv file")
+                    else:
+                        if self.verbose: print(f'Loaded {shape[0]} trees with each {shape[1]} embeddings')
+                        if self.verbose: print(embeddings)
+                        return embeddings
                 else:
-                    self.embedding_dim = shape[1]
-                    if self.verbose: print(f'Loaded {shape[0]} trees with each {shape[1]} embeddings')
-                    if self.verbose: print(embeddings)
+                    embeddings = np.random.normal(size=(self.num_samples, 2, self.embedding_dim))
                     return embeddings

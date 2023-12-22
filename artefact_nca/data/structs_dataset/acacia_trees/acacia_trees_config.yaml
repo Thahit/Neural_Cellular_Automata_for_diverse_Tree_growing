@@ -7,12 +7,13 @@ trainer:
     use_cuda: true
     num_hidden_channels: 12
     checkpoint_interval: 500
-    wandb: true
+    wandb: false
     epochs: 15001
-    #variational: true
-    #var_lr : .001
-    #var_loss_weight: 0.1
-    batch_size: 5
+    embedding_dim: 4
+    variational: true
+    var_lr : .001
+    var_loss_weight: 0.1
+    batch_size: 8
     clip_gradients: true
     model_config:
         normal_std: 0.1
@@ -23,7 +24,6 @@ trainer:
         pool_size: 32
         spawn_at_bottom: false
         verbose: false
-        load_embeddings: false
         sample_specific_pool: true
 
 defaults:
