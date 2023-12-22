@@ -311,8 +311,8 @@ class VoxelCATrainer(BaseTorchTrainer):
 
     def train_iter(self, batch_size=32, iteration=0):
         batch, targets, embedding, tree, indices = self.sample_batch(batch_size)
-        # print(f'Batch Sampled: tree {tree} | bs: {batch.size()} | ts: {targets.size()}')
-        batch, targets, indices = self.sample_batch(batch_size)# maybe change to include embeddings
+        print(f'Batch Sampled: tree {tree} | bs: {batch.size()} | ts: {targets.size()}')
+        #batch, targets, indices = self.sample_batch(batch_size)# maybe change to include embeddings
 
         #_______________________________
         embedding_input = None
