@@ -107,8 +107,8 @@ class VoxelCATrainer(BaseTorchTrainer):
     def get_seed(self, batch_size=1):
         return self.dataset.get_seed(batch_size)[0]
 
-    def sample_batch(self, batch_size: int):
-        return self.dataset.sample(batch_size)
+    def sample_batch(self, tree: int, batch_size: int):
+        return self.dataset.sample(tree, batch_size)
 
     # def log_epoch(self, train_metrics, epoch):
     #     for metric in train_metrics:
@@ -210,43 +210,43 @@ class VoxelCATrainer(BaseTorchTrainer):
                                      "spawn_at_bottom": self.dataset.spawn_at_bottom,
                                      "use_random_seed_block": self.dataset.use_random_seed_block,
                                      "sample_specific_pools": self.dataset.sample_specific_pools,
-                                     "sample_random_tree": self.dataset.sample_random_tree,
                                      "load_embeddings": self.dataset.load_embeddings,
                                      },
                     "half_precision": self.half_precision
                 })
 
     def visualize(self, out):
-        prev_batch = out["prev_batch"]
-        post_batch = out["post_batch"]
-        prev_batch = rearrange(prev_batch, "b d h w c -> b w d h c")
-        post_batch = rearrange(post_batch, "b d h w c -> b w d h c")
-        prev_batch = replace_colors(
-            np.argmax(prev_batch[:, :, :, :, : self.num_categories], -1),
-            self.dataset.target_color_dict,
-        )
-        post_batch = replace_colors(
-            np.argmax(post_batch[:, :, :, :, : self.num_categories], -1),
-            self.dataset.target_color_dict,
-        )
-        clear_output()
-        vis0 = prev_batch[:5]
-        vis1 = post_batch[:5]
-        num_cols = len(vis0)
-        vis0[vis0 == "_empty"] = None
-        vis1[vis1 == "_empty"] = None
-        print("Before --- After")
-        fig = plt.figure(figsize=(15, 10))
-        for i in range(1, num_cols + 1):
-            ax0 = fig.add_subplot(1, num_cols, i, projection="3d")
-            ax0.voxels(vis0[i - 1], facecolors=vis0[i - 1], edgecolor="k")
-            ax0.set_title("Index {}".format(i))
-        for i in range(1, num_cols + 1):
-            ax1 = fig.add_subplot(2, num_cols, i + num_cols, projection="3d")
-            ax1.voxels(vis1[i - 1], facecolors=vis1[i - 1], edgecolor="k")
-            ax1.set_title("Index {}".format(i))
-        plt.subplots_adjust(bottom=0.005)
-        plt.show()
+        for tree in range(self.dataset.num_samples):
+            prev_batch = out["prev_batch"][tree]
+            post_batch = out["post_batch"][tree]
+            prev_batch = rearrange(prev_batch, "b d h w c -> b w d h c")
+            post_batch = rearrange(post_batch, "b d h w c -> b w d h c")
+            prev_batch = replace_colors(
+                np.argmax(prev_batch[:, :, :, :, : self.num_categories], -1),
+                self.dataset.target_color_dict,
+            )
+            post_batch = replace_colors(
+                np.argmax(post_batch[:, :, :, :, : self.num_categories], -1),
+                self.dataset.target_color_dict,
+            )
+            clear_output()
+            vis0 = prev_batch[:5]
+            vis1 = post_batch[:5]
+            num_cols = len(vis0)
+            vis0[vis0 == "_empty"] = None
+            vis1[vis1 == "_empty"] = None
+            print("Before --- After")
+            fig = plt.figure(figsize=(15, 10))
+            for i in range(1, num_cols + 1):
+                ax0 = fig.add_subplot(1, num_cols, i, projection="3d")
+                ax0.voxels(vis0[i - 1], facecolors=vis0[i - 1], edgecolor="k")
+                ax0.set_title("Index {}".format(i))
+            for i in range(1, num_cols + 1):
+                ax1 = fig.add_subplot(2, num_cols, i + num_cols, projection="3d")
+                ax1.voxels(vis1[i - 1], facecolors=vis1[i - 1], edgecolor="k")
+                ax1.set_title("Index {}".format(i))
+            plt.subplots_adjust(bottom=0.005)
+            plt.show()
 
     def rollout(self, initial=None, steps=100):
         if initial is None:
@@ -358,12 +358,6 @@ class VoxelCATrainer(BaseTorchTrainer):
         loss += variational_loss * self.var_loss_weight
         return loss, iou_loss, class_loss, variational_loss
 
-    def get_loss_for_single_instance(self, x, rearrange_input=False):
-        if rearrange_input:
-            x = rearrange(x, "b d h w c -> b c d h w")
-        batch, targets, embedding, tree, indices = self.sample_batch(1)
-        return self.get_loss(x, targets)
-
     def train_func(self, x, targets, embeddings=None, embedding_params=None, steps=1, save_emb=False):
         self.optimizer.zero_grad()
         # print(targets[0, 3:4, 3:5, 4:7])
@@ -381,8 +375,8 @@ class VoxelCATrainer(BaseTorchTrainer):
         x = rearrange(x, "b c d h w -> b d h w c")
         out = {
             "out": x,
-            "metrics": {"loss": loss.item(), "iou_loss": iou_loss.item(), "class_loss": class_loss,
-                        "var_loss": var_loss},
+            "metrics": {"loss": loss.item(), "iou_loss": iou_loss.item(), "class_loss": class_loss.item(),
+                        "var_loss": var_loss.item()},
             "loss": loss,
         }
 
@@ -392,65 +386,76 @@ class VoxelCATrainer(BaseTorchTrainer):
         return out
 
     def train_iter(self, batch_size=32, iteration=0, save_emb=False):
-        batch, targets, embedding, tree, indices = self.sample_batch(batch_size)
-        # print(f'Batch Sampled: tree {tree} | bs: {batch.size()} | ts: {targets.size()} | emb: {embedding}')
+        output = {}
+        output["prev_batch"] = []
+        output["post_batch"] = []
+        output["total_metrics"] = []
+        output["total_loss"] = []
+        output["metrics"] = {}
+        for tree in range(self.dataset.num_samples):
+            batch, targets, embedding, tree, indices = self.sample_batch(tree, batch_size)
+            print(f'Batch Sampled: tree {tree} | bs: {batch.size()} | ts: {targets.size()} | emb: {embedding}')
 
-        # _______________________________
-        embedding_input = None
-        if self.embedding_dim:
+            #_______________________________
+            embedding_input = None
+            if self.embedding_dim:
 
-            embedding = embedding.reshape(2, -1)  # dont come in correct shape
+                embedding = embedding.reshape(2, -1)  # dont come in correct shape
 
-            embedding_input = torch.normal(mean=0, std=1, size=(self.batch_size, self.embedding_dim)).to(self.device)
-            if self.variational:
-                embedding.requires_grad = True
-                embedding_input *= torch.exp(0.5 * embedding[1])  # var
-                embedding_input += embedding[0]  # mean
+                embedding_input = torch.normal(mean=0, std=1, size=(self.batch_size, self.embedding_dim)).to(self.device)
+                if self.variational:
+                    embedding.requires_grad = True
+                    embedding_input *= torch.exp(0.5 * embedding[1])  # var
+                    embedding_input += embedding[0]  # mean
 
-            # shape_to_emulate = [num for num in batch.shape]#batch channel, l, h ,w
-            shape_to_emulate = [dim_i for dim_i in batch.shape[1:-1]]
-            shape_to_emulate.extend([-1, -1])
-            # shape_to_emulate[:2] = embedding_input.shape
-            embedding_input = embedding_input.expand(shape_to_emulate)  # l,h,w, batch, channel
-            embedding_input = embedding_input.permute(-2, 0, 1, 2, -1)  # back to b d h w c
-            # have to permute cannot do this direclty
-        # _____________________________________
+                # shape_to_emulate = [num for num in batch.shape]#batch channel, l, h ,w
+                shape_to_emulate = [dim_i for dim_i in batch.shape[1:-1]]
+                shape_to_emulate.extend([-1, -1])
+                # shape_to_emulate[:2] = embedding_input.shape
+                embedding_input = embedding_input.expand(shape_to_emulate)  # l,h,w, batch, channel
+                embedding_input = embedding_input.permute(-2, 0, 1, 2, -1)  # back to b d h w c
+                # have to permute cannot do this direclty
+            # _____________________________________
 
-        if self.use_sample_pool:
-            with torch.no_grad():
-                loss_rank = (
-                    self.rank_loss_function(batch, targets)
-                    .detach()
-                    .cpu()
-                    .numpy()
-                    .argsort()[::-1]
-                )
-                batch = batch[loss_rank.copy()]
-                batch[:1] = torch.from_numpy(self.get_seed()).to(self.device)
-                # print(f'Rank: {loss_rank} | \ttargets: {targets.shape}, \tbatch: {batch.shape}')
 
-                if self.damage:
-                    self.apply_damage(batch)
+            if self.use_sample_pool:
+                with torch.no_grad():
+                    loss_rank = (
+                        self.rank_loss_function(batch, targets)
+                        .detach()
+                        .cpu()
+                        .numpy()
+                        .argsort()[::-1]
+                    )
+                    batch = batch[loss_rank.copy()]
+                    batch[:1] = torch.from_numpy(self.get_seed()).to(self.device)
+                    # print(f'Rank: {loss_rank} | \ttargets: {targets.shape}, \tbatch: {batch.shape}')
 
-        steps = np.random.randint(self.min_steps, self.max_steps)
-        if self.half_precision:
-            with torch.cuda.amp.autocast():  # unused?
-                out_dict = self.train_func(batch, targets, embeddings=embedding_input, embedding_params=embedding,
+                    if self.damage:
+                        self.apply_damage(batch)
+
+            steps = np.random.randint(self.min_steps, self.max_steps)
+            if self.half_precision:
+                with torch.cuda.amp.autocast():
+                    out_dict = self.train_func(batch, targets, embeddings=embedding_input, embedding_params=embedding,
                                            steps=steps)
-        else:
-            # print(f'Batch Input: tree {tree} | bs: {batch.size()} | ts: {targets.size()} | steps: {steps}')
-            out_dict = self.train_func(batch, targets, embeddings=embedding_input, embedding_params=embedding,
+            else:
+                # print(f'Batch Input: tree {tree} | bs: {batch.size()} | ts: {targets.size()} | steps: {steps}')
+                out_dict = self.train_func(batch, targets, embeddings=embedding_input, embedding_params=embedding,
                                        steps=steps)
-        out, loss, metrics = out_dict["out"], out_dict["loss"], out_dict["metrics"]
+            out, loss, metrics = out_dict["out"], out_dict["loss"], out_dict["metrics"]
 
-        if self.update_dataset and self.use_sample_pool:
-            if self.variational:
+            if self.update_dataset and self.use_sample_pool:
+              if self.variational:
                 embedding.grad.zero_()
                 self.update_dataset_function(out, tree, indices, embedding=embedding, save_emb=save_emb)
-            else:
+              else:
                 self.update_dataset_function(out, tree, indices)
-
-        out_dict["prev_batch"] = batch.detach().cpu().numpy()
-        out_dict["post_batch"] = out.detach().cpu().numpy()
-
-        return out_dict
+            output["prev_batch"].append(batch.detach().cpu().numpy())
+            output["post_batch"].append(out.detach().cpu().numpy())
+            output["total_metrics"].append(metrics)
+            output["total_loss"].append(loss)
+        for metric in output["total_metrics"][0]:
+            output["metrics"][metric] = sum([x[metric] for x in output["total_metrics"]]) / self.dataset.num_samples
+        output["loss"] = torch.mean(torch.stack(output["total_loss"]))
+        return output

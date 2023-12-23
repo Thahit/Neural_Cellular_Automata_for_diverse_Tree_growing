@@ -163,11 +163,7 @@ class VoxelDataset:
             plt.subplots_adjust(bottom=0.005)
             plt.show()
 
-    def sample(self, batch_size):
-        if self.sample_random_tree:
-            tree = random.sample(range(self.num_samples), 1)
-        else:
-            tree = (self.last_sample + 1) % self.num_samples
+    def sample(self, tree, batch_size):
         indices = random.sample(range(self.pool_size), batch_size)
         return self.get_data(tree, indices)
 
@@ -181,8 +177,6 @@ class VoxelDataset:
             self.data[tree, indices] = out
         else:
             self.data[0, indices] = out
-        if not self.sample_random_tree:
-            self.last_sample = tree
         if embedding is not None and self.load_embeddings:
             self.embeddings[tree] = embedding
             if saveToFile:
