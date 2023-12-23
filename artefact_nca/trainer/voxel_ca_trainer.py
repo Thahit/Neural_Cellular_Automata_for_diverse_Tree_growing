@@ -210,14 +210,12 @@ class VoxelCATrainer(BaseTorchTrainer):
                                      "spawn_at_bottom": self.dataset.spawn_at_bottom,
                                      "use_random_seed_block": self.dataset.use_random_seed_block,
                                      "sample_specific_pools": self.dataset.sample_specific_pools,
-                                     "sample_random_tree": self.dataset.sample_random_tree,
                                      "load_embeddings": self.dataset.load_embeddings,
                                      },
                     "half_precision": self.half_precision
                 })
 
     def visualize(self, out):
-        print(len(out["prev_batch"]), self.dataset.num_samples)
         for tree in range(self.dataset.num_samples):
             prev_batch = out["prev_batch"][tree]
             post_batch = out["post_batch"][tree]
@@ -387,7 +385,7 @@ class VoxelCATrainer(BaseTorchTrainer):
                 embedding_params -= self.var_lr * embedding_params.grad
         return out
 
-    def train_iter(self, batch_size=32, iteration=0):
+    def train_iter(self, batch_size=32, iteration=0, save_emb=False):
         output = {}
         output["prev_batch"] = []
         output["post_batch"] = []

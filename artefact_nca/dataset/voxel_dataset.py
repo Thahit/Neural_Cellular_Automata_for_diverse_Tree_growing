@@ -36,6 +36,7 @@ class VoxelDataset:
             load_entity_config: Dict[Any, Any] = {},
             pool_size: int = 48,
             sample_specific_pool: bool = False,
+            random_tree_sampling: bool = True,
             load_embeddings: bool = False,
             embedding_dim: Optional[int] = None,
             num_hidden_channels: Any = 10,
@@ -58,6 +59,7 @@ class VoxelDataset:
         self.target_unique_val_dict = target_unique_val_dict
         self.pool_size = pool_size
         self.sample_specific_pools = sample_specific_pool
+        self.sample_random_tree = random_tree_sampling
         self.last_sample = 0
         self.input_shape = input_shape
         if self.target_voxel is None and self.target_unique_val_dict is None:

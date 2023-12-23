@@ -8,7 +8,6 @@ from pathlib import Path
 import grpc
 import ast
 import nbtlib
-from nbtschematic import SchematicFile
 import numpy as np
 from matplotlib.colors import rgb2hex
 from nbtlib import serialize_tag, Byte
