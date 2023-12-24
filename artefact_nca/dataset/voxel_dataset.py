@@ -183,10 +183,16 @@ class VoxelDataset:
             self.data[0, indices] = out
         if not self.sample_random_tree:
             self.last_sample = tree
-        if embedding is not None and self.load_embeddings:
+        if embedding is not None:
             self.embeddings[tree] = embedding
             if saveToFile:
                 np.savetxt(os.path.join(self.nbt_path, 'embeddings.csv'), self.embeddings.detach().cpu().numpy().reshape((self.num_samples, -1)), delimiter=',', fmt='%10.5f')
+
+    def save_embeddings(self, path):
+        if self.embeddings is not None:
+            np.savetxt(os.path.join(path, 'embeddings.csv'),
+                       self.embeddings.detach().cpu().numpy().reshape((self.num_samples, -1)), delimiter=',',
+                       fmt='%10.5f')
 
     def setup_embeddings(self):
         if self.nbt_path is None:
@@ -214,5 +220,6 @@ class VoxelDataset:
                         if self.verbose: print(embeddings)
                         return embeddings
                 else:
-                    embeddings = np.random.normal(size=(self.num_samples, 2, self.embedding_dim))
+                    embeddings = np.random.normal(loc=0, scale=0.2, size=(self.num_samples, 2, self.embedding_dim))
+                    print(embeddings)
                     return embeddings

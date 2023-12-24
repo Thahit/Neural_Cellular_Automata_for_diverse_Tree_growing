@@ -244,6 +244,7 @@ class BaseTorchTrainer(metaclass=abc.ABCMeta):
         }
         torch.save(checkpoint, torch_path)
         self.save_config(path)
+        self.dataset.save_embeddings(path)
         return path
 
     def save_config(self, path) -> str:
