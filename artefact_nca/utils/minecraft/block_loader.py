@@ -104,6 +104,7 @@ def get_block_array(
     no_padding=True,
     unequal_padding=False,
     padding=None,
+    same_size=False
 ):
     # for b in nbt_data[0]['palette']:
     #     print(b)
@@ -115,6 +116,7 @@ def get_block_array(
     num_trees = len(nbt_data)
 
     print(f'Num Trees: {num_trees}')
+    print(f'same size?: {same_size}')
     unique_set = set()
     for i in range(len(nbt_data)):
         unique_set.update(nbt_data[i]['Blocks'])
@@ -129,52 +131,82 @@ def get_block_array(
     unique_val_dict = {i: unique_vals[i] for i in range(len(unique_vals))}
     print(unique_val_dict)
 
-    min_coords_shifted = np.array(min_coords)
-    max_coords_shifted = np.array(max_coords)
-    size_arr = np.insert(np.array(max_coords_shifted) - np.array(min_coords_shifted) + 1, 0, num_trees)
-    center = size_arr // 2
-    print(f'Min coords: {min_coords_shifted} | Max coords: {max_coords_shifted} => arr size: {size_arr}')
-    arr = np.zeros(size_arr, dtype=object)
+    if same_size:
+        min_coords_shifted = np.array(min_coords)
+        max_coords_shifted = np.array(max_coords)
+        size_arr = np.insert(np.array(max_coords_shifted) - np.array(min_coords_shifted) + 1, 0, num_trees)
+        center = size_arr // 2
+        print(f'Min coords: {min_coords_shifted} | Max coords: {max_coords_shifted} => arr size: {size_arr}')
+        arr = np.zeros(size_arr, dtype=object)
 
-    for i in range(num_trees):
-        internal_w = int(nbt_data[i]['Width'])
-        internal_d = int(nbt_data[i]['Length'])
-        internal_h = int(nbt_data[i]['Height'])
-        internal_d_half = internal_d // 2
-        internal_w_half = internal_w // 2
-        print(f'Internal w: {internal_w}, l: {internal_d}, h: {internal_h} | w: {internal_w_half}, l: {internal_d_half}')
-        if internal_w > size_arr[1] or internal_d > size_arr[2] or internal_h+1 > size_arr[3]:
-            raise Exception('Provided structure bounding box is bigger than the loading range')
+        for i in range(num_trees):
+            internal_w = int(nbt_data[i]['Width'])
+            internal_d = int(nbt_data[i]['Length'])
+            internal_h = int(nbt_data[i]['Height'])
+            internal_d_half = internal_d // 2
+            internal_w_half = internal_w // 2
+            print(f'Internal w: {internal_w}, l: {internal_d}, h: {internal_h} | w: {internal_w_half}, l: {internal_d_half}')
+            if internal_w > size_arr[1] or internal_d > size_arr[2] or internal_h+1 > size_arr[3]:
+                raise Exception('Provided structure bounding box is bigger than the loading range')
 
-        blocks = nbt_data[i]['Blocks']
-        for y in range(internal_h):
-            for x in range(internal_w):
-                for z in range(internal_d):
+            blocks = nbt_data[i]['Blocks']
+            for y in range(internal_h):
+                for x in range(internal_w):
+                    for z in range(internal_d):
 
-                    arr[i, x + center[1] - internal_w_half, z + center[2] - internal_d_half, y+1] = \
-                        unique_val_to_int_dict[blocks[x + z*internal_w + y*internal_w*internal_d]]
+                        arr[i, x + center[1] - internal_w_half, z + center[2] - internal_d_half, y+1] = \
+                            unique_val_to_int_dict[blocks[x + z*internal_w + y*internal_w*internal_d]]
 
-    bounds = np.nonzero(arr)[1:]
-    if unequal_padding and padding is not None:
-        x_min = np.min(bounds[0]) - padding[0]
-        x_max = np.max(bounds[0]) + padding[0]
-        z_min = np.min(bounds[1]) - padding[2]
-        z_max = np.max(bounds[1]) + padding[2]
-        y_min = np.min(bounds[2]) - padding[1]
-        y_max = np.max(bounds[2]) + padding[1]
-    elif no_padding:
-        x_min = np.min(bounds[0]) - 1
-        x_max = np.max(bounds[0]) + 2
-        z_min = np.min(bounds[1]) - 1
-        z_max = np.max(bounds[1]) + 2
-        y_min = np.min(bounds[2]) - 1
-        y_max = np.max(bounds[2]) + 2
+        bounds = np.nonzero(arr)[1:]
+        if unequal_padding and padding is not None:
+            x_min = np.min(bounds[0]) - padding[0]
+            x_max = np.max(bounds[0]) + padding[0]
+            z_min = np.min(bounds[1]) - padding[2]
+            z_max = np.max(bounds[1]) + padding[2]
+            y_min = np.min(bounds[2]) - padding[1]
+            y_max = np.max(bounds[2]) + padding[1]
+        elif no_padding:
+            x_min = np.min(bounds[0]) - 1
+            x_max = np.max(bounds[0]) + 2
+            z_min = np.min(bounds[1]) - 1
+            z_max = np.max(bounds[1]) + 2
+            y_min = np.min(bounds[2]) - 1
+            y_max = np.max(bounds[2]) + 2
+        else:
+            x_min, y_min, z_min = 0, 0, 0
+            x_max = arr.shape[1]
+            z_max = arr.shape[2]
+            y_max = arr.shape[3]
+        blocks = nbt_data[0]['Blocks']
+        return blocks, unique_val_dict, arr[:, x_min:x_max, z_min:z_max, y_min: y_max], color_dict, unique_val_dict
     else:
-        x_min, y_min, z_min = 0, 0, 0
-        x_max = arr.shape[1]
-        z_max = arr.shape[2]
-        y_max = arr.shape[3]
-    blocks = nbt_data[0]['Blocks']
+        print(f'Start unequal size')
+        arr = []
+
+        for i in range(num_trees):
+            internal_w = int(nbt_data[i]['Width'])
+            internal_d = int(nbt_data[i]['Length'])
+            internal_h = int(nbt_data[i]['Height'])
+
+            padding_w = padding[0] if padding else 2
+            padding_d = padding[1] if padding else 2
+            padding_h = padding[2] if padding else 2
+            target = np.zeros((internal_w + padding_w*2, internal_d + padding_d*2, internal_h + padding_h), dtype=object)
+
+            print(f'Internal w: {internal_w}, l: {internal_d}, h: {internal_h} => size {target.shape}')
+
+            blocks = nbt_data[i]['Blocks']
+            for y in range(internal_h):
+                for x in range(internal_w):
+                    for z in range(internal_d):
+
+                        target[x + padding_w, z + padding_d, y+1] = \
+                            unique_val_to_int_dict[blocks[x + z*internal_w + y*internal_w*internal_d]]
+            arr.append(target)
+
+        blocks = nbt_data[0]['Blocks']
+        return blocks, unique_val_dict, arr, color_dict, unique_val_dict
+
     # a = np.argwhere(arr > 0)
     # l = []
     # max_val = 0
@@ -215,7 +247,6 @@ def get_block_array(
     # unique_val_dict = {str(k): unique_val_dict[k] for k in unique_val_dict}
     # print(f'Final unique_val_to_int_dict: {unique_val_to_int_dict}')
     # print(f'Final unique_val_dict: {unique_val_dict}')
-    return blocks, unique_val_dict, arr[:, x_min:x_max, z_min:z_max, y_min: y_max], color_dict, unique_val_dict
 
 
 def read_nbt_target(
@@ -227,6 +258,7 @@ def read_nbt_target(
     padding=None,
     block_priority=[],
     place_block_priority_first=True,
+    same_size=False
 ):
 
     min_coords = (load_coord[0] - load_range[0], load_coord[2] - load_range[2], load_coord[1])
@@ -257,7 +289,7 @@ def read_nbt_target(
             data.append(nbt_file.root)
 
         return get_block_array(
-            data, min_coords, max_coords, no_padding, unequal_padding, padding
+            data, min_coords, max_coords, no_padding, unequal_padding, padding, same_size
         )
 
 

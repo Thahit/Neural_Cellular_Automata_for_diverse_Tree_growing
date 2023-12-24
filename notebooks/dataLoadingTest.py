@@ -43,11 +43,12 @@ if __name__ == '__main__':
             "dataset_config": {"nbt_path": nbt_path},
         }
     )
-    # target = ct.dataset.targets[0, 0].numpy()
+    # targets = ct.dataset.targets
     # color_dict = ct.dataset.target_color_dict
-
-    # for i in range(target.shape[0]):
-    #     color_arr = convert_to_color(target[i], color_dict)
+    #
+    # for i in range(len(targets)):
+    #     target = targets[i].cpu().numpy()
+    #     color_arr = convert_to_color(target[0, :, :, : , :3], color_dict)
     #
     #     ax = plt.figure().add_subplot(projection='3d')
     #     ax.voxels(color_arr, facecolors=color_arr, edgecolor='k')

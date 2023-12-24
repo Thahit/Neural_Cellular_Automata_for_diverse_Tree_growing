@@ -51,7 +51,8 @@ class VoxelCADatasetConfig(BaseDatasetConfig):
     load_entity_config: Dict[Any, Any] = dataclasses.field(default_factory=lambda: {})
     spawn_at_bottom: bool = False
     random_tree_sampling: bool = True
-    sample_specific_pool: bool = False
+    equal_sized_samples: bool = False
+    sample_specific_pool: bool = True
     load_embeddings: bool = II("trainer.variational")
     embedding_dim: Optional[int] = II("trainer.embedding_dim")
     use_random_seed_block: bool = False

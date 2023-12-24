@@ -91,12 +91,12 @@ class VoxelCATrainer(BaseTorchTrainer):
     def post_dataset_setup(self):
         print("Post dataset setup!")
         print(
-            f'Target: #Trees: {self.dataset.num_samples} | #DifBlocks: {self.dataset.num_categories} | Target shape: {self.dataset.targets.shape} | Target shape: {self.dataset.target_voxel.shape}')
+            f'Target: #Trees: {self.dataset.num_samples} | #DifBlocks: {self.dataset.num_categories} | Target shape: {self.dataset.targets.shape if self.dataset.equal_sized_samples else [t.shape for t in self.dataset.targets]} | Target shape: {self.dataset.target_voxel.shape if self.dataset.equal_sized_samples else [t.shape for t in self.dataset.target_voxel]}')
         print(
-            f'Data: #Pools: {self.dataset.pool_size} | #PoolsPerTree: {self.dataset.sample_specific_pools} | Data shape: {self.dataset.data.shape}')
+            f'Data: #Pools: {self.dataset.pool_size} | #PoolsPerTree: {self.dataset.sample_specific_pools} | Data shape: {self.dataset.data.shape if self.dataset.equal_sized_samples else [t.shape for t in self.dataset.data]}')
 
-        self.seed = self.dataset.get_seed(1)[0]  # Not really needed?
-        self.dataset.visualize_seed()
+        # self.seed = self.dataset.get_seed(1)[0]  # Not really needed?
+        # self.dataset.visualize_seed()
         self.num_samples = self.dataset.num_samples
         # if self.dataset.load_embeddings:
         #     self.embedding_dim = self.dataset.embedding_dim
@@ -104,8 +104,8 @@ class VoxelCATrainer(BaseTorchTrainer):
         self.num_channels = self.dataset.num_channels
         self.model_config["living_channel_dim"] = self.num_categories
 
-    def get_seed(self, batch_size=1):
-        return self.dataset.get_seed(batch_size)[0]
+    def get_seed(self, batch_size=1, tree=0):
+        return self.dataset.get_seed(batch_size)[tree]
 
     def sample_batch(self, batch_size: int):
         return self.dataset.sample(batch_size)
@@ -210,6 +210,7 @@ class VoxelCATrainer(BaseTorchTrainer):
                                      "spawn_at_bottom": self.dataset.spawn_at_bottom,
                                      "use_random_seed_block": self.dataset.use_random_seed_block,
                                      "sample_specific_pools": self.dataset.sample_specific_pools,
+                                     "equal_sized_samples": self.dataset.equal_sized_samples,
                                      "sample_random_tree": self.dataset.sample_random_tree,
                                      "load_embeddings": self.dataset.load_embeddings,
                                      },
@@ -232,6 +233,7 @@ class VoxelCATrainer(BaseTorchTrainer):
         clear_output()
         vis0 = prev_batch[:5]
         vis1 = post_batch[:5]
+        print(vis1.shape)
         num_cols = len(vis0)
         vis0[vis0 == "_empty"] = None
         vis1[vis1 == "_empty"] = None
@@ -316,7 +318,11 @@ class VoxelCATrainer(BaseTorchTrainer):
         out = torch.clamp(
             torch.argmax(out[:, : self.num_categories, :, :, :], 1), min=0, max=1
         )
+
+        # with torch.no_grad():
+        #     sum = torch.sum(targets)
         intersect = torch.sum(out & targets).float()
+        # print(f'\nIntersection: {intersect} of {sum}')
         union = torch.sum(out | targets).float()
         o = (union - intersect) / (union + 1e-8)
         return o
@@ -426,7 +432,7 @@ class VoxelCATrainer(BaseTorchTrainer):
                     .argsort()[::-1]
                 )
                 batch = batch[loss_rank.copy()]
-                batch[:1] = torch.from_numpy(self.get_seed()).to(self.device)
+                batch[:1] = torch.from_numpy(self.get_seed(tree=tree)).to(self.device)
                 # print(f'Rank: {loss_rank} | \ttargets: {targets.shape}, \tbatch: {batch.shape}')
 
                 if self.damage:
@@ -452,5 +458,5 @@ class VoxelCATrainer(BaseTorchTrainer):
 
         out_dict["prev_batch"] = batch.detach().cpu().numpy()
         out_dict["post_batch"] = out.detach().cpu().numpy()
-
+        out_dict["tree"] = tree
         return out_dict
