@@ -64,13 +64,14 @@ class VoxelDataset:
         self.equal_sized_samples = equal_sized_samples
         self.load_entity_config['same_size'] = self.equal_sized_samples
         self.last_sample = 0
-        self.input_shape = input_shape
         if not self.equal_sized_samples and not self.sample_specific_pools:
-            raise ValueError("Sample specific pools are needed if padding is not equal for all trees")
+            raise ValueError("Sample specific pools are needed if size is not equal for all trees")
+        self.num_samples = 1
+        self.dimensions = []  # [(w,d,h)]
         if self.target_voxel is None and self.target_unique_val_dict is None:
             (
                 _,
-                _,
+                self.dimensions,
                 self.target_voxel,
                 self.target_color_dict,
                 self.target_unique_val_dict,
@@ -80,10 +81,12 @@ class VoxelDataset:
                 load_coord=self.load_coord,
                 load_entity_config=self.load_entity_config,
             )
+            self.num_samples = len(self.dimensions)
         else:
             self.target_color_dict = get_color_dict(
                 self.target_unique_val_dict.values()
             )
+            raise NotImplementedError('providing targets or unique values is not allowed at the moment')
         if padding_by_power is not None:
             raise NotImplementedError
         #     p = padding_by_power
@@ -94,81 +97,57 @@ class VoxelDataset:
         #     self.target_voxel = pad_target(self.target_voxel, p)
         #     self.current_power = current_power - 1
         self.num_categories = len(self.target_unique_val_dict)
-        self.num_samples = 1
-        if self.input_shape is not None:
-            self.width = self.input_shape[0]
-            self.depth = self.input_shape[1]
-            self.height = self.input_shape[2]
         if self.target_voxel is not None:
-            self.num_samples = self.target_voxel.shape[0] if self.equal_sized_samples else len(self.target_voxel)
-            self.width = self.target_voxel.shape[1] if self.equal_sized_samples else self.target_voxel[0].shape[0]
-            self.depth = self.target_voxel.shape[2] if self.equal_sized_samples else self.target_voxel[0].shape[1]
-            self.height = self.target_voxel.shape[3] if self.equal_sized_samples else self.target_voxel[0].shape[2]
-            self.targets = repeat(
-                self.target_voxel, "t w d h -> t b d h w", b=self.pool_size
-            ).astype(np.int) if self.equal_sized_samples else [repeat(
+            self.targets = [repeat(
                 t, "w d h -> b d h w", b=self.pool_size
             ).astype(np.int) for t in self.target_voxel]
         else:
-            self.targets = np.zeros(
-                (self.num_samples, self.pool_size, self.depth, self.height, self.width)
-            ).astype(np.int) if self.equal_sized_samples else [np.zeros(
-                (self.pool_size, self.depth, self.height, self.width)
-            ).astype(np.int) for t in range(self.num_samples)]
-        self.embedding_dim = embedding_dim
+            raise ImportError('Loading the targets did not work properly')
+        self.num_embedding_dims = embedding_dim
         self.embeddings = self.setup_embeddings()
         self.num_channels = num_hidden_channels + self.num_categories + 1
         self.living_channel_dim = self.num_categories
+        print(f'Channels: t={self.num_channels} | c={self.num_categories} | h={num_hidden_channels} | l_i={self.living_channel_dim} | e={self.num_embedding_dims}')
         self.half_precision = half_precision
         self.spawn_at_bottom = spawn_at_bottom
         self.use_random_seed_block = use_random_seed_block
         if self.half_precision:
-            self.data = self.get_seed(self.pool_size).astype(np.float16) if self.equal_sized_samples else [s.astype(np.float16) for s in self.get_seed(self.pool_size)]
+            self.data = [s.astype(np.float16) for s in self.get_seeds(self.pool_size)]
         else:
-            self.data = self.get_seed(self.pool_size).astype(np.float32) if self.equal_sized_samples else [s.astype(np.float32) for s in self.get_seed(self.pool_size)]
+            self.data = [s.astype(np.float32) for s in self.get_seeds(self.pool_size)]
 
     def to_device(self, device):
-        self.data = torch.from_numpy(self.data).to(device) if self.equal_sized_samples else [torch.from_numpy(t).to(device) for t in self.data]
-        self.targets = torch.from_numpy(self.targets).to(device).long() if self.equal_sized_samples else [torch.from_numpy(t).to(device).long() for t in self.targets]
+        self.data = [torch.from_numpy(t).to(device) for t in self.data]
+        self.targets = [torch.from_numpy(t).to(device).long() for t in self.targets]
         self.embeddings = torch.from_numpy(self.embeddings).to(device)
 
-    def get_seed(self, batch_size=1):
-        if self.sample_specific_pools:
-            seed = np.zeros((self.num_samples, batch_size, self.depth, self.height, self.width, self.num_channels)) if self.equal_sized_samples else \
-                [np.zeros((batch_size, t.shape[1], t.shape[2], t.shape[3], self.num_channels)) for t in self.targets]
-        else:
-            seed = np.zeros((1, batch_size, self.depth, self.height, self.width, self.num_channels)) if self.equal_sized_samples else \
-                [np.zeros((batch_size, t.shape[1], t.shape[2], t.shape[3], self.num_channels)) for t in self.targets]
+    def get_seeds(self, batch_size=1):
+        seeds = []
+        for j in range(self.num_samples):
+            seeds.append(self.get_seed(j, batch_size))
+        return seeds
+
+    def get_seed(self, tree, batch_size=1):
+        depth = self.dimensions[tree][1]
+        width = self.dimensions[tree][0]
+        height = self.dimensions[tree][2]
+        seed = np.zeros((batch_size, depth, height, width, self.num_channels))
         # random_class_arr = np.eye(self.num_categories)[np.random.choice(np.arange(1,self.num_categories), batch_size)]
         randint = np.random.randint(1, self.num_categories, batch_size)
-        if self.equal_sized_samples:
-            if self.spawn_at_bottom:
-                seed[:, :, self.depth // 3: 2*self.depth // 3, 0:3, self.width // 3: 2*self.width // 3, self.num_categories:] = 1.0
-                if self.use_random_seed_block:
-                    for i in range(randint.shape[0]):
-                        seed[:, i, self.depth // 3: 2*self.depth // 3, 0:3, self.width // 3: 2*self.width // 3, randint[i]] = 1.0
-            else:
-                seed[:, :, self.depth // 3: 2*self.depth // 3, self.height // 3: 2*self.height // 3, self.width // 3: 2*self.width // 3, self.num_categories:] = 1.0
-                if self.use_random_seed_block:
-                    for i in range(randint.shape[0]):
-                        seed[:, i, self.depth // 3: 2*self.depth // 3, self.height // 3: 2*self.height // 3, self.width // 3: 2*self.width // 3, randint[i]] = 1.0
+        if self.spawn_at_bottom:
+            seed[:, depth // 3: 2*depth // 3, 0:3, width // 3: 2*width // 3, self.num_categories:] = 1.0
+            if self.use_random_seed_block:
+                for i in range(randint.shape[0]):
+                    seed[i, depth // 3: 2*depth // 3, 0:3, width // 3: 2*width // 3, randint[i]] = 1.0
         else:
-            for j in range(len(seed)):
-                if self.spawn_at_bottom:
-                    seed[j][:, seed[j].shape[0] // 3: 2*seed[j].shape[0] // 3, 0:3, seed[j].shape[2] // 3: 2*seed[j].shape[2] // 3, self.num_categories:] = 1.0
-                    if self.use_random_seed_block:
-                        for i in range(randint.shape[0]):
-                            seed[j][i, seed[j].shape[0] // 3: 2*seed[j].shape[0] // 3, 0:3, seed[j].shape[2] // 3: 2*seed[j].shape[2] // 3, randint[i]] = 1.0
-                else:
-                    seed[j][:, seed[j].shape[0] // 3: 2*seed[j].shape[0] // 3, seed[j].shape[1] // 3: 2*seed[j].shape[1] // 3, seed[j].shape[2] // 3: 2*seed[j].shape[2] // 3, self.num_categories:] = 1.0
-                    if self.use_random_seed_block:
-                        for i in range(randint.shape[0]):
-                            seed[j][i, seed[j].shape[0] // 3: 2*seed[j].shape[0] // 3, seed[j].shape[1] // 3: 2*seed[j].shape[1] // 3, seed[j].shape[2] // 3: 2*seed[j].shape[2] // 3, randint[i]] = 1.0
-
+            seed[:, depth // 3: 2*depth // 3, height // 3: 2*height // 3, width // 3: 2*width // 3, self.num_categories:] = 1.0
+            if self.use_random_seed_block:
+                for i in range(randint.shape[0]):
+                    seed[i, depth // 3: 2*depth // 3, height // 3: 2*height // 3, width // 3: 2*width // 3, randint[i]] = 1.0
         return seed
 
     def visualize_seed(self):
-        raise NotImplementedError('needs non equal size adaptation!')
+        raise NotImplementedError('TODO, needs non equal size adaptation!')
         if self.verbose:
             post_batch = rearrange(self.data[0], "b d h w c -> b w d h c")
             post_batch = replace_colors(
@@ -205,21 +184,15 @@ class VoxelDataset:
 
     def update_dataset_function(self, out, tree, indices, embedding=None, saveToFile=False):
         if self.sample_specific_pools:
-            if self.equal_sized_samples:
-                self.data[tree, indices] = out
-            else:
-                self.data[tree][indices] = out
+            self.data[tree][indices] = out
         else:
-            if self.equal_sized_samples:
-                self.data[0, indices] = out
-            else:
-                self.data[0][indices] = out
+            self.data[0][indices] = out
         if not self.sample_random_tree:
             self.last_sample = tree
         if embedding is not None:
             self.embeddings[tree] = embedding
             if saveToFile:
-                np.savetxt(os.path.join(self.nbt_path, 'embeddings.csv'), self.embeddings.detach().cpu().numpy().reshape((self.num_samples, -1)), delimiter=',', fmt='%10.5f')
+                self.save_embeddings(self.nbt_path)
 
     def save_embeddings(self, path):
         if self.embeddings is not None:
@@ -246,13 +219,13 @@ class VoxelDataset:
                     embeddings = embeddings.reshape((shape[0], 2, -1))
                     if shape[0] != self.num_samples:
                         raise ValueError("Number of embedding does not match number of loaded trees")
-                    elif embeddings.shape[2] != self.embedding_dim:
+                    elif embeddings.shape[2] != self.num_embedding_dims:
                         raise ValueError("Number of embedding does not match num embeddings is csv file")
                     else:
                         if self.verbose: print(f'Loaded {shape[0]} trees with each {shape[1]} embeddings')
                         if self.verbose: print(embeddings)
                         return embeddings
                 else:
-                    embeddings = np.random.normal(loc=0, scale=0.2, size=(self.num_samples, 2, self.embedding_dim))
+                    embeddings = np.random.normal(loc=0, scale=0.2, size=(self.num_samples, 2, self.num_embedding_dims))
                     if self.verbose: print(embeddings)
                     return embeddings

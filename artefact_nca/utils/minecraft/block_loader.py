@@ -116,7 +116,6 @@ def get_block_array(
     num_trees = len(nbt_data)
 
     print(f'Num Trees: {num_trees}')
-    print(f'same size?: {same_size}')
     unique_set = set()
     for i in range(len(nbt_data)):
         unique_set.update(nbt_data[i]['Blocks'])
@@ -132,6 +131,7 @@ def get_block_array(
     print(unique_val_dict)
 
     if same_size:
+        print(f'Start equal size')
         min_coords_shifted = np.array(min_coords)
         max_coords_shifted = np.array(max_coords)
         size_arr = np.insert(np.array(max_coords_shifted) - np.array(min_coords_shifted) + 1, 0, num_trees)
@@ -178,11 +178,17 @@ def get_block_array(
             z_max = arr.shape[2]
             y_max = arr.shape[3]
         blocks = nbt_data[0]['Blocks']
-        return blocks, unique_val_dict, arr[:, x_min:x_max, z_min:z_max, y_min: y_max], color_dict, unique_val_dict
+        res = []
+        for i in range(num_trees):
+            res.append(arr[i, x_min:x_max, z_min:z_max, y_min: y_max])
+        dims = [r.shape for r in res]
+        dimensions = np.array(dims)
+        print(f'Loaded {num_trees} trees with dimensions: {dimensions}')
+        return blocks, dimensions, res, color_dict, unique_val_dict
     else:
         print(f'Start unequal size')
         arr = []
-
+        dimensions = []
         for i in range(num_trees):
             internal_w = int(nbt_data[i]['Width'])
             internal_d = int(nbt_data[i]['Length'])
@@ -203,9 +209,11 @@ def get_block_array(
                         target[x + padding_w, z + padding_d, y+1] = \
                             unique_val_to_int_dict[blocks[x + z*internal_w + y*internal_w*internal_d]]
             arr.append(target)
+            dimensions.append(target.shape)
 
         blocks = nbt_data[0]['Blocks']
-        return blocks, unique_val_dict, arr, color_dict, unique_val_dict
+        print(f'Loaded {num_trees} trees with dimensions: {dimensions}')
+        return blocks, dimensions, arr, color_dict, unique_val_dict
 
     # a = np.argwhere(arr > 0)
     # l = []

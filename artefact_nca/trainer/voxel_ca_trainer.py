@@ -95,17 +95,17 @@ class VoxelCATrainer(BaseTorchTrainer):
         print(
             f'Data: #Pools: {self.dataset.pool_size} | #PoolsPerTree: {self.dataset.sample_specific_pools} | Data shape: {self.dataset.data.shape if self.dataset.equal_sized_samples else [t.shape for t in self.dataset.data]}')
 
-        # self.seed = self.dataset.get_seed(1)[0]  # Not really needed?
         # self.dataset.visualize_seed()
         self.num_samples = self.dataset.num_samples
-        # if self.dataset.load_embeddings:
-        #     self.embedding_dim = self.dataset.embedding_dim
         self.num_categories = self.dataset.num_categories
         self.num_channels = self.dataset.num_channels
         self.model_config["living_channel_dim"] = self.num_categories
 
-    def get_seed(self, batch_size=1, tree=0):
-        return self.dataset.get_seed(batch_size)[tree]
+    def get_seed(self, batch_size=1, tree=None):
+        if tree is None:
+            return self.dataset.get_seeds(batch_size)
+        else:
+            return self.dataset.get_seed(tree, batch_size)
 
     def sample_batch(self, batch_size: int):
         return self.dataset.sample(batch_size)
@@ -203,8 +203,7 @@ class VoxelCATrainer(BaseTorchTrainer):
                     "variational": self.variational,
                     "var_lr": self.var_lr,
                     "var_loss_weight": self.var_loss_weight,
-                    "dataset_conf": {"width": self.dataset.width, "depth": self.dataset.depth,
-                                     "height": self.dataset.height,
+                    "dataset_conf": {"dimensions": self.dataset.dimensions,
                                      "num_channels": self.dataset.num_channels,
                                      "living_channel": self.dataset.living_channel_dim,
                                      "spawn_at_bottom": self.dataset.spawn_at_bottom,
@@ -301,6 +300,7 @@ class VoxelCATrainer(BaseTorchTrainer):
                 self.save(step=i)
             if self.early_stoppage:
                 if loss <= self.loss_threshold:
+                    self.save(step=i)
                     break
         self.post_train()
         return metrics

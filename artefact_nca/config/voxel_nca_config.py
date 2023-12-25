@@ -55,10 +55,9 @@ class VoxelCADatasetConfig(BaseDatasetConfig):
     sample_specific_pool: bool = True
     load_embeddings: bool = II("trainer.variational")
     embedding_dim: Optional[int] = II("trainer.embedding_dim")
-    use_random_seed_block: bool = False
-    input_shape: Optional[List[int]] = None
     num_hidden_channels: Any = II("trainer.num_hidden_channels")
     half_precision: Any = II("trainer.half_precision")
+    use_random_seed_block: bool = False
     pool_size: int = 32
     padding_by_power: Optional[int] = None
     verbose: bool = False
