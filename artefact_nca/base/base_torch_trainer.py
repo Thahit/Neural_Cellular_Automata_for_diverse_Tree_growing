@@ -277,7 +277,7 @@ class BaseTorchTrainer(metaclass=abc.ABCMeta):
 
         if self.wandb:
             for_wandb = {key: val for key, val in train_metrics.items()}
-            for_wandb["epoch"] = epoch
+            for_wandb["epoch"] = epoch * self.num_samples
             wandb.log(for_wandb)
 
     def visualize(self, *args, **kwargs):

@@ -102,7 +102,8 @@ def get_block_array(
     no_padding=True,
     unequal_padding=False,
     padding=None,
-    same_size=False
+    same_size=False,
+    verbose=False
 ):
     # for b in nbt_data[0]['palette']:
     #     print(b)
@@ -113,28 +114,28 @@ def get_block_array(
 
     num_trees = len(nbt_data)
 
-    print(f'Num Trees: {num_trees}')
+    if verbose: print(f'Num Trees: {num_trees}')
     unique_set = set()
     for i in range(len(nbt_data)):
         unique_set.update(nbt_data[i]['Blocks'])
     unique_vals = sorted(list(unique_set))
-    print(unique_vals)
+    if verbose: print(unique_vals)
     unique_vals.remove(0)
     unique_vals.insert(0, Byte(0))
     color_dict = get_color_dict(unique_vals)
-    print(color_dict)
+    if verbose: print(color_dict)
     unique_val_to_int_dict = {unique_vals[i]: i for i in range(len(unique_vals))}
-    print(unique_val_to_int_dict)
+    if verbose: print(unique_val_to_int_dict)
     unique_val_dict = {i: unique_vals[i] for i in range(len(unique_vals))}
-    print(unique_val_dict)
+    if verbose: print(unique_val_dict)
 
     if same_size:
-        print(f'Start equal size')
+        if verbose: print(f'Start equal size')
         min_coords_shifted = np.array(min_coords)
         max_coords_shifted = np.array(max_coords)
         size_arr = np.insert(np.array(max_coords_shifted) - np.array(min_coords_shifted) + 1, 0, num_trees)
         center = size_arr // 2
-        print(f'Min coords: {min_coords_shifted} | Max coords: {max_coords_shifted} => arr size: {size_arr}')
+        if verbose: print(f'Min coords: {min_coords_shifted} | Max coords: {max_coords_shifted} => arr size: {size_arr}')
         arr = np.zeros(size_arr, dtype=object)
 
         for i in range(num_trees):
@@ -143,7 +144,7 @@ def get_block_array(
             internal_h = int(nbt_data[i]['Height'])
             internal_d_half = internal_d // 2
             internal_w_half = internal_w // 2
-            print(f'Internal w: {internal_w}, l: {internal_d}, h: {internal_h} | w: {internal_w_half}, l: {internal_d_half}')
+            if verbose: print(f'Internal w: {internal_w}, l: {internal_d}, h: {internal_h} | w: {internal_w_half}, l: {internal_d_half}')
             if internal_w > size_arr[1] or internal_d > size_arr[2] or internal_h+1 > size_arr[3]:
                 raise Exception('Provided structure bounding box is bigger than the loading range')
 
@@ -181,10 +182,10 @@ def get_block_array(
             res.append(arr[i, x_min:x_max, z_min:z_max, y_min: y_max])
         dims = [r.shape for r in res]
         dimensions = np.array(dims)
-        print(f'Loaded {num_trees} trees with dimensions: {dimensions}')
+        if verbose: print(f'Loaded {num_trees} trees with dimensions: {dimensions}')
         return blocks, dimensions, res, color_dict, unique_val_dict
     else:
-        print(f'Start unequal size')
+        if verbose: print(f'Start unequal size')
         arr = []
         dimensions = []
         for i in range(num_trees):
@@ -197,7 +198,7 @@ def get_block_array(
             padding_h = padding[2] if padding else 2
             target = np.zeros((internal_w + padding_w*2, internal_d + padding_d*2, internal_h + padding_h), dtype=object)
 
-            print(f'Internal w: {internal_w}, l: {internal_d}, h: {internal_h} => size {target.shape}')
+            if verbose: print(f'Internal w: {internal_w}, l: {internal_d}, h: {internal_h} => size {target.shape}')
 
             blocks = nbt_data[i]['Blocks']
             for y in range(internal_h):
@@ -210,49 +211,8 @@ def get_block_array(
             dimensions.append(target.shape)
 
         blocks = nbt_data[0]['Blocks']
-        print(f'Loaded {num_trees} trees with dimensions: {dimensions}')
+        if verbose: print(f'Loaded {num_trees} trees with dimensions: {dimensions}')
         return blocks, dimensions, arr, color_dict, unique_val_dict
-
-    # a = np.argwhere(arr > 0)
-    # l = []
-    # max_val = 0
-    # for i in range(3):
-    #     min_arg = np.min(a[:, i])
-    #     max_arg = np.max(a[:, i])
-    #     l.append((min_arg, max_arg))
-    #     if max_arg > max_val:
-    #         max_val = max_arg
-    #
-    # sub_set = arr[l[0][0] : l[0][1] + 1, l[1][0] : l[1][1] + 1, l[2][0] : l[2][1] + 1]
-    #
-    # max_val = np.max(sub_set.shape)
-    # max_val = roundup(max_val)
-    # differences = [max_val - sub_set.shape[i] for i in range(3)]
-    # if unequal_padding:
-    #     differences = [roundup(sub_set.shape[i]) - sub_set.shape[i] for i in range(3)]
-    #
-    # if no_padding:
-    #     padding = [(0, 0), (0, 0), (0, 0)]
-    # if padding is None:
-    #     padding = []
-    #     for i in range(len(differences)):
-    #         d = differences[i]
-    #         left_pad = 0
-    #         right_pad = d
-    #         if i != 2:
-    #             left_pad = d // 2
-    #             right_pad = d // 2
-    #             if left_pad + right_pad + sub_set.shape[i] < max_val:
-    #                 right_pad += 1
-    #         padding.append((left_pad, right_pad))
-
-    # arr = np.pad(sub_set, padding)
-    # unique_val_to_int_dict = {
-    #     str(k): unique_val_to_int_dict[k] for k in unique_val_to_int_dict
-    # }
-    # unique_val_dict = {str(k): unique_val_dict[k] for k in unique_val_dict}
-    # print(f'Final unique_val_to_int_dict: {unique_val_to_int_dict}')
-    # print(f'Final unique_val_dict: {unique_val_dict}')
 
 
 def read_nbt_target(
@@ -264,7 +224,8 @@ def read_nbt_target(
     padding=None,
     block_priority=[],
     place_block_priority_first=True,
-    same_size=False
+    same_size=False,
+    verbose=False
 ):
 
     min_coords = (load_coord[0] - load_range[0], load_coord[2] - load_range[2], load_coord[1])
@@ -295,7 +256,7 @@ def read_nbt_target(
             data.append(nbt_file.root)
 
         return get_block_array(
-            data, min_coords, max_coords, no_padding, unequal_padding, padding, same_size
+            data, min_coords, max_coords, no_padding, unequal_padding, padding, same_size, verbose=verbose
         )
 
 

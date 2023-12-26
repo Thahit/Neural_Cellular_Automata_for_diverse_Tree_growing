@@ -6,9 +6,9 @@ trainer:
     device_id: 0
     use_cuda: true
     num_hidden_channels: 12
-    checkpoint_interval: 500
-    wandb: false
-    epochs: 20001
+    checkpoint_interval: 200
+    wandb: true
+    epochs: 10001
     embedding_dim: 4
     variational: true
     var_lr : .002
@@ -27,6 +27,7 @@ trainer:
         load_embeddings: false
         sample_specific_pool: true
         equal_sized_samples: false
+        load_entity_config: {'verbose': false}
 
 defaults:
     - voxel

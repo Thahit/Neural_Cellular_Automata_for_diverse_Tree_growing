@@ -85,7 +85,6 @@ class VoxelCATrainer(BaseTorchTrainer):
     var_lr: float = attr.ib(default=None)
     var_loss_weight: float = attr.ib(default=1.)
     clip_gradients: bool = attr.ib(default=False)
-
     num_channels = 0
 
     def post_dataset_setup(self):
@@ -216,7 +215,8 @@ class VoxelCATrainer(BaseTorchTrainer):
                 })
 
     def visualize(self, out):
-        for tree in range(self.dataset.num_samples):
+        # for tree in range(self.dataset.num_samples):
+        for tree in range(1):
             prev_batch = out["prev_batch"][tree]
             post_batch = out["post_batch"][tree]
             prev_batch = rearrange(prev_batch, "b d h w c -> b w d h c")
@@ -235,7 +235,7 @@ class VoxelCATrainer(BaseTorchTrainer):
             num_cols = len(vis0)
             vis0[vis0 == "_empty"] = None
             vis1[vis1 == "_empty"] = None
-            print("Before --- After")
+            print(f'Before --- After --- Tree {tree}')
             fig = plt.figure(figsize=(15, 10))
             for i in range(1, num_cols + 1):
                 ax0 = fig.add_subplot(1, num_cols, i, projection="3d")
@@ -376,26 +376,21 @@ class VoxelCATrainer(BaseTorchTrainer):
         x = rearrange(x, "b c d h w -> b d h w c")
         out = {
             "out": x,
-            "metrics": {"loss": loss.item(), "iou_loss": iou_loss.item(), "class_loss": class_loss.item(),
-                        "var_loss": var_loss.item()},
+            "metrics": {"loss": loss.item(), "iou_loss": iou_loss.item(), "class_loss": class_loss.item()},
             "loss": loss,
         }
 
         if self.variational:  # optimizer cannot do this as it is nor part of the model and change
+            out['metrics']["var_loss"] = var_loss.item()
             with torch.no_grad():
                 embedding_params -= self.var_lr * embedding_params.grad
         return out
 
     def train_iter(self, batch_size=32, iteration=0, save_emb=False):
-        output = {}
-        output["prev_batch"] = []
-        output["post_batch"] = []
-        output["total_metrics"] = []
-        output["total_loss"] = []
-        output["metrics"] = {}
+        output = {"prev_batch": [], "post_batch": [], "total_metrics": [], "total_loss": [], "metrics": {}}
         for tree in range(self.dataset.num_samples):
             batch, targets, embedding, tree, indices = self.sample_batch(tree, batch_size)
-            print(f'Batch Sampled: tree {tree} | bs: {batch.size()} | ts: {targets.size()} | emb: {embedding}')
+            # print(f'Batch Sampled: tree {tree} | bs: {batch.size()} | ts: {targets.size()} | emb: {embedding}')
 
             # _______________________________
             embedding_input = None

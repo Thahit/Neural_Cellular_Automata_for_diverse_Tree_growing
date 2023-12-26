@@ -50,7 +50,6 @@ class VoxelCADatasetConfig(BaseDatasetConfig):
     load_coord: List[int] = dataclasses.field(default_factory=lambda: [50, 10, 10])
     load_entity_config: Dict[Any, Any] = dataclasses.field(default_factory=lambda: {})
     spawn_at_bottom: bool = False
-    random_tree_sampling: bool = True
     equal_sized_samples: bool = False
     sample_specific_pool: bool = True
     load_embeddings: bool = II("trainer.variational")
@@ -91,10 +90,10 @@ class VoxelCATrainerConfig(BaseTrainerConfig):
     early_stoppage: bool = True
     loss_threshold: float = 0.005
     wandb: bool = False
-    variational : bool = False
+    variational: bool = False
     embedding_dim: Optional[int] = None
     var_lr: float = 0.0001
-    var_loss_weight:float = 1.
+    var_loss_weight: float = 1.
 
 
 config_defaults = [{"trainer": "voxel"}]
@@ -102,7 +101,6 @@ config_defaults = [{"trainer": "voxel"}]
 
 @dataclass
 class VoxelCAConfig:
-
     defaults: List[Any] = field(default_factory=lambda: config_defaults)
     trainer: Any = MISSING
 
