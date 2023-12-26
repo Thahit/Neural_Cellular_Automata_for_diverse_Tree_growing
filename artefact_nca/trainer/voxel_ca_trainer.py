@@ -91,9 +91,9 @@ class VoxelCATrainer(BaseTorchTrainer):
     def post_dataset_setup(self):
         print("Post dataset setup!")
         print(
-            f'Target: #Trees: {self.dataset.num_samples} | #DifBlocks: {self.dataset.num_categories} | Target shape: {self.dataset.targets.shape if self.dataset.equal_sized_samples else [t.shape for t in self.dataset.targets]} | Target shape: {self.dataset.target_voxel.shape if self.dataset.equal_sized_samples else [t.shape for t in self.dataset.target_voxel]}')
+            f'Target: #Trees: {self.dataset.num_samples} | #DifBlocks: {self.dataset.num_categories} \n| Target shape: {[t.shape for t in self.dataset.targets]} \n| Target voxel shape: {[t.shape for t in self.dataset.target_voxel]}')
         print(
-            f'Data: #Pools: {self.dataset.pool_size} | #PoolsPerTree: {self.dataset.sample_specific_pools} | Data shape: {self.dataset.data.shape if self.dataset.equal_sized_samples else [t.shape for t in self.dataset.data]}')
+            f'Data: #Pools: {self.dataset.pool_size} | #PoolsPerTree: {self.dataset.sample_specific_pools} | Data shape: {[t.shape for t in self.dataset.data]}')
 
         # self.dataset.visualize_seed()
         self.num_samples = self.dataset.num_samples
@@ -232,7 +232,6 @@ class VoxelCATrainer(BaseTorchTrainer):
         clear_output()
         vis0 = prev_batch[:5]
         vis1 = post_batch[:5]
-        print(vis1.shape)
         num_cols = len(vis0)
         vis0[vis0 == "_empty"] = None
         vis1[vis1 == "_empty"] = None
