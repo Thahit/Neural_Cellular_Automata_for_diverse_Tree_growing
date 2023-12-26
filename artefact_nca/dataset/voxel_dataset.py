@@ -36,7 +36,6 @@ class VoxelDataset:
             load_entity_config: Dict[Any, Any] = {},
             pool_size: int = 48,
             sample_specific_pool: bool = True,
-            random_tree_sampling: bool = True,
             equal_sized_samples: bool = False,
             load_embeddings: bool = False,
             embedding_dim: Optional[int] = None,
@@ -45,7 +44,6 @@ class VoxelDataset:
             spawn_at_bottom: bool = True,
             use_random_seed_block: bool = False,
             device: Optional[Any] = None,
-            input_shape: Optional[List[int]] = None,
             padding_by_power: Optional[int] = None,
             verbose: bool = False
     ):
@@ -60,7 +58,6 @@ class VoxelDataset:
         self.target_unique_val_dict = target_unique_val_dict
         self.pool_size = pool_size
         self.sample_specific_pools = sample_specific_pool
-        self.sample_random_tree = random_tree_sampling
         self.equal_sized_samples = equal_sized_samples
         self.load_entity_config['same_size'] = self.equal_sized_samples
         self.last_sample = 0
@@ -107,7 +104,7 @@ class VoxelDataset:
         self.embeddings = self.setup_embeddings()
         self.num_channels = num_hidden_channels + self.num_categories + 1
         self.living_channel_dim = self.num_categories
-        print(f'Channels: t={self.num_channels} | c={self.num_categories} | h={num_hidden_channels} | l_i={self.living_channel_dim} | e={self.num_embedding_dims}')
+        if self.verbose: print(f'Channels: t={self.num_channels} | c={self.num_categories} | h={num_hidden_channels} | l_i={self.living_channel_dim} | e={self.num_embedding_dims}')
         self.half_precision = half_precision
         self.spawn_at_bottom = spawn_at_bottom
         self.use_random_seed_block = use_random_seed_block
@@ -168,11 +165,7 @@ class VoxelDataset:
             plt.subplots_adjust(bottom=0.005)
             plt.show()
 
-    def sample(self, batch_size):
-        if self.sample_random_tree:
-            tree = random.sample(range(self.num_samples), 1)
-        else:
-            tree = (self.last_sample + 1) % self.num_samples
+    def sample(self, tree, batch_size):
         indices = random.sample(range(self.pool_size), batch_size)
         return self.get_data(tree, indices)
 
@@ -187,8 +180,6 @@ class VoxelDataset:
             self.data[tree][indices] = out
         else:
             self.data[0][indices] = out
-        if not self.sample_random_tree:
-            self.last_sample = tree
         if embedding is not None:
             self.embeddings[tree] = embedding
             if saveToFile:

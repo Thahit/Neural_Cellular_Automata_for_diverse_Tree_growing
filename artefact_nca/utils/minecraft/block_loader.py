@@ -8,9 +8,7 @@ from pathlib import Path
 import grpc
 import ast
 import nbtlib
-from nbtschematic import SchematicFile
 import numpy as np
-import python_nbt.nbt as nbt
 from matplotlib.colors import rgb2hex
 from nbtlib import serialize_tag, Byte
 from test_evocraft_py.minecraft_pb2 import *
