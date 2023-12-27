@@ -8,8 +8,8 @@ trainer:
     num_hidden_channels: 12
     checkpoint_interval: 200
     wandb: true
-    epochs: 10001
-    embedding_dim: 4
+    epochs: 3001
+    embedding_dim: 2
     variational: true
     var_lr : .002
     var_loss_weight: 0.1
@@ -19,7 +19,7 @@ trainer:
         normal_std: 0.1
         update_net_channel_dims: [64, 32, 32, 16]
     optimizer_config:
-        lr: 0.001
+        lr: 0.002
     dataset_config:
         pool_size: 32
         spawn_at_bottom: false
