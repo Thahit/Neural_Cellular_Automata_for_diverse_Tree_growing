@@ -85,6 +85,9 @@ class VoxelCATrainer(BaseTorchTrainer):
     var_lr: float = attr.ib(default=None)
     var_loss_weight: float = attr.ib(default=1.)
     clip_gradients: bool = attr.ib(default=False)
+    use_index: bool = attr.ib(default=False)
+    random: bool = attr.ib(default=True)
+    leanrable_embeddings = variational or (embedding_dim and (not random) and use_index)
     num_channels = 0
 
     def post_dataset_setup(self):
@@ -380,7 +383,7 @@ class VoxelCATrainer(BaseTorchTrainer):
             "loss": loss,
         }
 
-        if self.variational:  # optimizer cannot do this as it is nor part of the model and change
+        if self.leanrable_embeddings:  # optimizer cannot do this as it is nor part of the model and change
             out['metrics']["var_loss"] = var_loss.item()
             with torch.no_grad():
                 embedding_params -= self.var_lr * embedding_params.grad
@@ -396,10 +399,22 @@ class VoxelCATrainer(BaseTorchTrainer):
             embedding_input = None
             if self.embedding_dim:
 
+                # if  self.variational:
                 embedding = embedding.reshape(2, -1)  # dont come in correct shape
 
-                embedding_input = torch.normal(mean=0, std=1, size=(self.batch_size, self.embedding_dim)).to(
-                    self.device)
+                if self.random:
+                    embedding_input = torch.normal(mean=0, std=1, size=(self.batch_size, self.embedding_dim)).to(
+                        self.device)
+                else:
+                    embedding = embedding[0]  # because wrong shape
+                    # will create issues when saving
+                    embedding_input = torch.ones((self.batch_size, self.embedding_dim))
+                    if self.use_index:
+                        embedding_input *= tree
+                    else:  # encoder
+                        embedding.requires_grad = True
+                        embedding_input *= embedding
+
                 if self.variational:
                     embedding.requires_grad = True
                     embedding_input *= torch.exp(0.5 * embedding[1])  # var

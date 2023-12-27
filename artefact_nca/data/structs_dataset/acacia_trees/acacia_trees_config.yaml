@@ -9,22 +9,24 @@ trainer:
     checkpoint_interval: 200
     wandb: true
     epochs: 3001
-    embedding_dim: 2
-    variational: true
+    embedding_dim: 1
     var_lr : .002
     var_loss_weight: 0.1
     batch_size: 8
-    clip_gradients: true
+    clip_gradients: false
+    random: true
+    variational: true
+    #use_index: true
     model_config:
         normal_std: 0.1
         update_net_channel_dims: [64, 32, 32, 16]
     optimizer_config:
         lr: 0.002
     dataset_config:
+        load_embeddings: false
         pool_size: 32
         spawn_at_bottom: false
         verbose: false
-        load_embeddings: false
         sample_specific_pool: true
         equal_sized_samples: false
         load_entity_config: {'verbose': false}

@@ -50,9 +50,9 @@ class VoxelCADatasetConfig(BaseDatasetConfig):
     load_coord: List[int] = dataclasses.field(default_factory=lambda: [50, 10, 10])
     load_entity_config: Dict[Any, Any] = dataclasses.field(default_factory=lambda: {})
     spawn_at_bottom: bool = False
+    load_embeddings: bool = False#II("trainer.variational")
     equal_sized_samples: bool = False
     sample_specific_pool: bool = True
-    load_embeddings: bool = II("trainer.variational")
     embedding_dim: Optional[int] = II("trainer.embedding_dim")
     num_hidden_channels: Any = II("trainer.num_hidden_channels")
     half_precision: Any = II("trainer.half_precision")
@@ -94,6 +94,8 @@ class VoxelCATrainerConfig(BaseTrainerConfig):
     embedding_dim: Optional[int] = None
     var_lr: float = 0.0001
     var_loss_weight: float = 1.
+    use_index: bool = False
+    random: bool =True
 
 
 config_defaults = [{"trainer": "voxel"}]
