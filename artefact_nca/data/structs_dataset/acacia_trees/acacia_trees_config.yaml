@@ -4,23 +4,26 @@ trainer:
     max_steps: 65
     visualize_output: true
     device_id: 0
-    use_cuda: true
+    use_cuda: false
     num_hidden_channels: 12
-    checkpoint_interval: 500
+    checkpoint_interval: 1
     wandb: false
-    epochs: 15001
-    embedding_dim: 4
-    variational: true
+    epochs: 151
+    embedding_dim: 1
     var_lr : .001
     var_loss_weight: 0.1
-    batch_size: 8
-    clip_gradients: true
+    batch_size: 2
+    clip_gradients: false
+    random: true
+    variational: true
+    #use_index: true
     model_config:
         normal_std: 0.1
-        update_net_channel_dims: [64, 32, 32, 16]
+        update_net_channel_dims: [64, 32, 32]
     optimizer_config:
         lr: 0.001
     dataset_config:
+        load_embeddings: false
         pool_size: 32
         spawn_at_bottom: false
         verbose: false

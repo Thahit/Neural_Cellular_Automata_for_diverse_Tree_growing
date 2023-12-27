@@ -52,7 +52,7 @@ class VoxelCADatasetConfig(BaseDatasetConfig):
     spawn_at_bottom: bool = False
     random_tree_sampling: bool = True
     sample_specific_pool: bool = False
-    load_embeddings: bool = II("trainer.variational")
+    load_embeddings: bool = False#II("trainer.variational")
     embedding_dim: Optional[int] = II("trainer.embedding_dim")
     use_random_seed_block: bool = False
     input_shape: Optional[List[int]] = None
@@ -95,6 +95,8 @@ class VoxelCATrainerConfig(BaseTrainerConfig):
     embedding_dim: Optional[int] = None
     var_lr: float = 0.0001
     var_loss_weight:float = 1.
+    use_index: bool = False
+    random: bool =True
 
 
 config_defaults = [{"trainer": "voxel"}]
