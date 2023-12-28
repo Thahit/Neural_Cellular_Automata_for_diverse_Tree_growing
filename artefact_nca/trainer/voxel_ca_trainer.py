@@ -203,6 +203,8 @@ class VoxelCATrainer(BaseTorchTrainer):
                     "num_embedding_channels": self.embedding_dim,
                     "num_channels": self.num_channels,
                     "variational": self.variational,
+                    "use_index": self.use_index,
+                    "random": self.random,
                     "var_lr": self.var_lr,
                     "var_loss_weight": self.var_loss_weight,
                     "dataset_conf": {"dimensions": self.dataset.dimensions,
@@ -401,24 +403,20 @@ class VoxelCATrainer(BaseTorchTrainer):
 
                 # if  self.variational:
                 embedding = embedding.reshape(2, -1)  # dont come in correct shape
-
+                embedding_input = torch.ones((self.batch_size, self.embedding_dim))
                 if self.random:
-                    embedding_input = torch.normal(mean=0, std=1, size=(self.batch_size, self.embedding_dim)).to(
-                        self.device)
-                else:
-                    embedding = embedding[0]  # because wrong shape
-                    # will create issues when saving
-                    embedding_input = torch.ones((self.batch_size, self.embedding_dim))
-                    if self.use_index:
-                        embedding_input *= tree
-                    else:  # encoder
-                        embedding.requires_grad = True
-                        embedding_input *= embedding
-
-                if self.variational:
+                    embedding_input = torch.normal(mean=0, std=1, size=(self.batch_size, self.embedding_dim))
+                elif self.variational:
                     embedding.requires_grad = True
                     embedding_input *= torch.exp(0.5 * embedding[1])  # var
                     embedding_input += embedding[0]  # mean
+                else:
+                    embedding = embedding[0]  # because wrong shape
+                    if self.use_index:
+                        embedding_input *= tree / self.num_samples
+                    else:  # encoder
+                        embedding.requires_grad = True
+                        embedding_input *= embedding
 
                 # shape_to_emulate = [num for num in batch.shape]#batch channel, l, h ,w
                 shape_to_emulate = [dim_i for dim_i in batch.shape[1:-1]]
@@ -426,6 +424,7 @@ class VoxelCATrainer(BaseTorchTrainer):
                 # shape_to_emulate[:2] = embedding_input.shape
                 embedding_input = embedding_input.expand(shape_to_emulate)  # l,h,w, batch, channel
                 embedding_input = embedding_input.permute(-2, 0, 1, 2, -1)  # back to b d h w c
+                embedding_input = embedding_input.to(self.device)
                 # have to permute cannot do this direclty
             # _____________________________________
 
