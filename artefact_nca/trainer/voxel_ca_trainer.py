@@ -253,17 +253,40 @@ class VoxelCATrainer(BaseTorchTrainer):
             plt.subplots_adjust(bottom=0.005)
             plt.show()
 
-    def rollout(self, initial=None, steps=100):
+    def rollout(self, initial=None, steps=100, tree=0):
         if initial is None:
-            initial, _, _, _, _ = self.sample_batch(1)
+            initial, _, embedding, for_tree, _ = self.sample_batch(tree, 1)
         if not isinstance(initial, torch.Tensor):
             initial = torch.from_numpy(initial).to(self.device)
+        if self.embedding_dim:
+            embedding = embedding.reshape(2, -1)  # dont come in correct shape
+            embedding_input = torch.ones((self.batch_size, self.embedding_dim))
+            if self.random:
+                embedding_input = torch.normal(mean=0, std=1, size=(self.batch_size, self.embedding_dim))
+            elif self.variational:
+                embedding.requires_grad = True
+                embedding_input *= torch.exp(0.5 * embedding[1])  # var
+                embedding_input += embedding[0]  # mean
+            else:
+                embedding = embedding[0]  # because wrong shape
+                if self.use_index:
+                    embedding_input *= for_tree / self.num_samples
+                else:  # encoder
+                    embedding.requires_grad = True
+                    embedding_input *= embedding
+
+            shape_to_emulate = [dim_i for dim_i in initial.shape[1:-1]]
+            shape_to_emulate.extend([-1, -1])
+            embedding_input = embedding_input.expand(shape_to_emulate)  # l,h,w, batch, channel
+            embedding_input = embedding_input.permute(-2, 0, 1, 2, -1)  # back to b d h w c
+            embedding_input = embedding_input.to(self.device)
         bar = tqdm(np.arange(steps))
         out = [initial]
         life_masks = [None]
         for i in bar:
-            x, life_mask = self.model(out[-1], 1, return_life_mask=True)
+            x, life_mask = self.model(out[-1][0:1], embeddings=embedding_input, steps=1, return_life_mask=True)
             life_masks.append(life_mask)
+            x = rearrange(x, "b c d h w -> b d h w c")
             out.append(x)
         return out[-1], out, life_masks
 
