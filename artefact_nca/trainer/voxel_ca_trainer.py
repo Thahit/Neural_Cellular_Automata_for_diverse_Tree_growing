@@ -258,26 +258,29 @@ class VoxelCATrainer(BaseTorchTrainer):
             initial, _, embedding, _, _ = self.sample_batch(tree, 1)
         if not isinstance(initial, torch.Tensor):
             initial = torch.from_numpy(initial).to(self.device)
+
+        embedding_input = None
         if self.embedding_dim:
             embedding = embedding.reshape(2, -1)  # dont come in correct shape
             embedding_input = torch.ones((self.batch_size, self.embedding_dim))
+            embedding_input = embedding_input.to(self.device)
             if self.random:
                 embedding_input = torch.normal(mean=0, std=1, size=(self.batch_size, self.embedding_dim))
+                embedding_input = embedding_input.to(self.device)
             elif self.variational:
                 embedding_input *= torch.exp(0.5 * embedding[1])  # var
                 embedding_input += embedding[0]  # mean
             else:
-                embedding = embedding[0]  # because wrong shape
                 if self.use_index:
                     embedding_input *= tree / self.num_samples
                 else:  # encoder
+                    embedding = embedding[0]  # because wrong shape
                     embedding_input *= embedding
 
             shape_to_emulate = [dim_i for dim_i in initial.shape[1:-1]]
             shape_to_emulate.extend([-1, -1])
             embedding_input = embedding_input.expand(shape_to_emulate)  # l,h,w, batch, channel
             embedding_input = embedding_input.permute(-2, 0, 1, 2, -1)  # back to b d h w c
-            embedding_input = embedding_input.to(self.device)
         bar = tqdm(np.arange(steps))
         out = [initial]
         x = initial
@@ -423,8 +426,6 @@ class VoxelCATrainer(BaseTorchTrainer):
             # _______________________________
             embedding_input = None
             if self.embedding_dim:
-
-                # if  self.variational:
                 embedding = embedding.reshape(2, -1)  # dont come in correct shape
                 embedding_input = torch.ones((self.batch_size, self.embedding_dim))
                 embedding_input = embedding_input.to(self.device)
