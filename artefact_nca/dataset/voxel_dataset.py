@@ -32,6 +32,7 @@ class VoxelDataset:
             target_color_dict: Optional[Dict[Any, Any]] = None,
             target_unique_val_dict: Optional[Dict[Any, Any]] = None,
             nbt_path: Optional[str] = None,
+            embedding_path: Optional[str] = None,
             load_coord: List[int] = [0, 0, 0],
             load_entity_config: Dict[Any, Any] = {},
             pool_size: int = 48,
@@ -52,6 +53,7 @@ class VoxelDataset:
         self.load_entity_config = load_entity_config
         self.load_coord = load_coord
         self.nbt_path = nbt_path
+        self.embedding_path = embedding_path
         self.load_embeddings = load_embeddings
         self.target_voxel = target_voxel
         self.target_color_dict = target_color_dict
@@ -192,6 +194,23 @@ class VoxelDataset:
                        fmt='%10.5f')
 
     def setup_embeddings(self):
+        if self.embedding_path is not None:
+            try:
+                embeddings = np.genfromtxt(self.embedding_path, delimiter=",").astype(
+                    np.float32)
+            except Exception:
+                raise Exception("embeddings.csv loading failed")
+            shape = embeddings.shape
+            embeddings = embeddings.reshape((shape[0], 2, -1))
+            if shape[0] != self.num_samples:
+                raise ValueError("Number of embedding does not match number of loaded trees")
+            elif embeddings.shape[2] != self.num_embedding_dims:
+                raise ValueError("Number of embedding does not match num embeddings is csv file")
+            else:
+                if self.verbose: print(f'Loaded {shape[0]} trees with each {shape[1]} embeddings')
+                if self.verbose: print(embeddings)
+                return embeddings
+
         if self.nbt_path is None:
             raise ValueError("Must provide an nbt_path")
         if self.nbt_path is not None:
@@ -205,7 +224,7 @@ class VoxelDataset:
                     try:
                         embeddings = np.genfromtxt(os.path.join(self.nbt_path, 'embeddings.csv'), delimiter=",").astype(np.float32)
                     except Exception:
-                        raise Exception("embeddings.txt does not exists in data folder")
+                        raise Exception("embeddings.csv does not exists in data folder")
                     shape = embeddings.shape
                     embeddings = embeddings.reshape((shape[0], 2, -1))
                     if shape[0] != self.num_samples:
