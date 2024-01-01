@@ -219,6 +219,24 @@ class VoxelCATrainer(BaseTorchTrainer):
                     "half_precision": self.half_precision
                 })
 
+
+    def visualize_one(self, out, step = 0):
+        out = rearrange(out, "b d h w c -> b w d h c")
+        out = replace_colors(
+                np.argmax(out[:, :, :, :, : self.num_categories], -1),
+                self.dataset.target_color_dict,
+            )
+        clear_output()
+        print(f'step: ', step)
+        fig = plt.figure(figsize=(15, 10))
+        ax = plt.figure().add_subplot(projection='3d')
+        vis0 = out[:5]
+        vis0[vis0 == "_empty"] = None
+        ax.voxels(vis0[0], facecolors=vis0[0], edgecolor="k")
+        #ax.voxels(voxelarray, facecolors=colors, edgecolor='k')
+
+        plt.show()
+    
     def visualize(self, out):
         # for tree in range(self.dataset.num_samples):
         for tree in range(1):
@@ -389,6 +407,62 @@ class VoxelCATrainer(BaseTorchTrainer):
         loss = (0.5 * class_loss + 0.5 * alive_loss + iou_loss) / 3.0
         loss += variational_loss * self.var_loss_weight
         return loss, iou_loss, class_loss, variational_loss
+
+    def infer(self, embeddings=None, embedding_params=None, steps = 64, stepsize = 8):
+        batch, targets, embedding, tree, indices = self.sample_batch(0, 1)#batchsize
+        
+        if embeddings != None:#input values you are interested in
+            embedding_input = torch.Tensor(embeddings).to(self.device)
+            embedding_input = embedding_input.reshape(1, -1)
+            shape_to_emulate = [dim_i for dim_i in batch.shape[1:-1]]
+            shape_to_emulate.extend([-1, -1])
+            # shape_to_emulate[:2] = embedding_input.shape
+            embedding_input = embedding_input.expand(shape_to_emulate)  # l,h,w, batch, channel
+            embedding_input = embedding_input.permute(-2, 0, 1, 2, -1)  # back to b d h w c
+            # have to permute cannot do this direclty
+        else:
+            if embedding_params!= None:
+                embedding = torch.Tensor(embedding_params).to(self.device)
+            
+            embedding_input = None
+            if self.embedding_dim:
+                embedding = embedding.reshape(2, -1)  # dont come in correct shape
+                embedding_input = torch.ones((self.batch_size, self.embedding_dim))
+                embedding_input = embedding_input.to(self.device)
+                if self.random:
+                    embedding_input = torch.normal(mean=0, std=1, size=(self.batch_size, self.embedding_dim))
+                    embedding_input = embedding_input.to(self.device)
+                elif self.variational:
+                    embedding.requires_grad = True
+                    embedding_input *= torch.exp(0.5 * embedding[1])  # var
+                    embedding_input += embedding[0]  # mean
+                else:
+                    if self.use_index:
+                        embedding_input *= tree / self.num_samples
+                    else:  # encoder
+                        embedding = embedding[0]  # because wrong shape
+                        embedding.requires_grad = True
+                        embedding_input *= embedding
+
+                # shape_to_emulate = [num for num in batch.shape]#batch channel, l, h ,w
+                shape_to_emulate = [dim_i for dim_i in batch.shape[1:-1]]
+                shape_to_emulate.extend([-1, -1])
+                # shape_to_emulate[:2] = embedding_input.shape
+                embedding_input = embedding_input.expand(shape_to_emulate)  # l,h,w, batch, channel
+                embedding_input = embedding_input.permute(-2, 0, 1, 2, -1)  # back to b d h w c
+                # have to permute cannot do this direclty
+        
+        x = batch
+        #print(embedding_input.shape)
+        to_vis = x.detach().cpu().numpy()
+        self.visualize_one(to_vis, 0)
+        for i in range(steps //stepsize):
+            with torch.no_grad():
+                x = self.model(x, embeddings=embedding_input, steps=stepsize, rearrange_output=True)
+                print("input: ", x.shape)
+                to_vis = x.detach().cpu().numpy()
+                self.visualize_one(to_vis, (i+1)*stepsize)
+    
 
     def train_func(self, x, targets, embeddings=None, embedding_params=None, steps=1, save_emb=False):
         self.optimizer.zero_grad()
