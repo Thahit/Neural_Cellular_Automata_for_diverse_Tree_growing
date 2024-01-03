@@ -71,7 +71,7 @@ class VoxelCATrainer(BaseTorchTrainer):
     num_hidden_channels: Optional[int] = attr.ib(default=12)
     embedding_dim: Optional[int] = attr.ib(default=None)
     num_categories: Optional[int] = attr.ib(default=None)
-    variational: bool = attr.ib(default=False)
+    variational: bool = attr.ib(default=True)
     use_dataset: bool = attr.ib(default=True)
     use_model: bool = attr.ib(default=True)
     half_precision: bool = attr.ib(default=False)
@@ -86,7 +86,7 @@ class VoxelCATrainer(BaseTorchTrainer):
     var_loss_weight: float = attr.ib(default=1.)
     clip_gradients: bool = attr.ib(default=False)
     use_index: bool = attr.ib(default=False)
-    random: bool = attr.ib(default=True)
+    random: bool = attr.ib(default=False)
     leanrable_embeddings = variational or (embedding_dim and (not random) and use_index)
     num_channels = 0
 
@@ -280,15 +280,17 @@ class VoxelCATrainer(BaseTorchTrainer):
         embedding_input = None
         if self.embedding_dim:
             embedding = embedding.reshape(2, -1)  # dont come in correct shape
-            embedding_input = torch.ones((self.batch_size, self.embedding_dim))
-            embedding_input = embedding_input.to(self.device)
             if self.random:
                 embedding_input = torch.normal(mean=0, std=1, size=(self.batch_size, self.embedding_dim))
                 embedding_input = embedding_input.to(self.device)
             elif self.variational:
+                embedding_input = torch.normal(mean=0, std=1, size=(self.batch_size, self.embedding_dim))
+                embedding_input = embedding_input.to(self.device)
                 embedding_input *= torch.exp(0.5 * embedding[1])  # var
                 embedding_input += embedding[0]  # mean
             else:
+                embedding_input = torch.ones((self.batch_size, self.embedding_dim))
+                embedding_input = embedding_input.to(self.device)
                 if self.use_index:
                     embedding_input *= tree / self.num_samples
                 else:  # encoder
@@ -377,7 +379,7 @@ class VoxelCATrainer(BaseTorchTrainer):
             iou_loss = self.iou(x, targets)
         if self.use_bce_loss:
             weight_class = torch.ones(self.num_categories)
-            weight_class[0] = 0.001
+            weight_class[0] = 0.01
             class_loss = F.cross_entropy(
                 x[:, : self.num_categories, :, :, :], targets, weight=weight_class.to(self.device)
             )
@@ -386,7 +388,7 @@ class VoxelCATrainer(BaseTorchTrainer):
             alive_loss = torch.nn.MSELoss()(alive, alive_target_cells)
         else:
             weight_class = torch.ones(self.num_categories)
-            weight_class[0] = 0.001
+            weight_class[0] = 0.01
             class_loss = F.cross_entropy(
                 x[:, : self.num_categories, :, :, :], targets, weight=weight_class.to(self.device)
             )
@@ -410,7 +412,7 @@ class VoxelCATrainer(BaseTorchTrainer):
 
     def infer(self, embeddings=None, embedding_params=None, steps = 64, stepsize = 8):
         batch, targets, embedding, tree, indices = self.sample_batch(0, 1)#batchsize
-        
+
         if embeddings != None:#input values you are interested in
             embedding_input = torch.Tensor(embeddings).to(self.device)
             embedding_input = embedding_input.reshape(1, -1)
@@ -433,6 +435,8 @@ class VoxelCATrainer(BaseTorchTrainer):
                     embedding_input = torch.normal(mean=0, std=1, size=(self.batch_size, self.embedding_dim))
                     embedding_input = embedding_input.to(self.device)
                 elif self.variational:
+                    embedding_input = torch.ones((self.batch_size, self.embedding_dim))
+                    embedding_input = embedding_input.to(self.device)
                     embedding.requires_grad = True
                     embedding_input *= torch.exp(0.5 * embedding[1])  # var
                     embedding_input += embedding[0]  # mean
@@ -501,16 +505,18 @@ class VoxelCATrainer(BaseTorchTrainer):
             embedding_input = None
             if self.embedding_dim:
                 embedding = embedding.reshape(2, -1)  # dont come in correct shape
-                embedding_input = torch.ones((self.batch_size, self.embedding_dim))
-                embedding_input = embedding_input.to(self.device)
                 if self.random:
                     embedding_input = torch.normal(mean=0, std=1, size=(self.batch_size, self.embedding_dim))
                     embedding_input = embedding_input.to(self.device)
                 elif self.variational:
                     embedding.requires_grad = True
+                    embedding_input = torch.normal(mean=0, std=1, size=(self.batch_size, self.embedding_dim))
+                    embedding_input = embedding_input.to(self.device)
                     embedding_input *= torch.exp(0.5 * embedding[1])  # var
                     embedding_input += embedding[0]  # mean
                 else:
+                    embedding_input = torch.ones((self.batch_size, self.embedding_dim))
+                    embedding_input = embedding_input.to(self.device)
                     if self.use_index:
                         embedding_input *= tree / self.num_samples
                     else:  # encoder

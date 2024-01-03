@@ -11,6 +11,7 @@ from IPython.display import clear_output
 from artefact_nca.trainer.voxel_ca_trainer import VoxelCATrainer
 from artefact_nca.utils.minecraft import MinecraftClient, convert_to_color, Blockloader, spawn_entities
 from artefact_nca.utils.minecraft.voxel_utils import replace_colors
+from notebooks.checkpoint_visualizer import find_file
 
 # base_nbt_path = "/home/thahit/github/Neural_Cellular_Automata_for_diverse_Tree_growing/artefact_nca/data/structs_dataset/acacia_trees"
 base_nbt_path = "C:/Users/cedri/Desktop/Code/ETH/DLProject/Neural_Cellular_Automata_for_diverse_Tree_growing/artefact_nca/data/structs_dataset"
@@ -32,6 +33,12 @@ def visualize_output(ct, out):
 if __name__ == '__main__':
     # nbt_path = "{}/acacia_trees/acacia_003.nbt".format(base_nbt_path)
     nbt_path = "{}/acacia_trees".format(base_nbt_path)
+    checkpoints_path = "C:/Users/cedri/Desktop/Code/ETH/DLProject/Neural_Cellular_Automata_for_diverse_Tree_growing/checkpoints/2023-12-26-19-03-11_AcaciaTrees_8tree_final_orange/checkpoints"
+    directory = f"{checkpoints_path}/{3000}"
+    config_path = find_file(directory, ".yaml")
+    pretrained_path = find_file(directory, ".pt")
+    embedding_path = find_file(directory, ".csv")
+
     # blocks, unique_vals, target, color_dict, unique_val_dict = MinecraftClient.load_entity("trees",
     #                                                                                        nbt_path=base_nbt_path,
     #                                                                                        load_coord=(0, 0, 0),
@@ -41,7 +48,12 @@ if __name__ == '__main__':
     ct = VoxelCATrainer.from_config(
         "{}/acacia_trees/acacia_trees_config.yaml".format(base_nbt_path),
         config={
-            "dataset_config": {"nbt_path": nbt_path},
+            "pretrained_path": pretrained_path,
+            "use_cuda": torch.cuda.is_available(),
+            "wandb": True,
+            "dataset_config": {"nbt_path": nbt_path, "embedding_path": embedding_path},
+
+            # "dataset_config": {"nbt_path": nbt_path},
         }
     )
     # targets = ct.dataset.targets
