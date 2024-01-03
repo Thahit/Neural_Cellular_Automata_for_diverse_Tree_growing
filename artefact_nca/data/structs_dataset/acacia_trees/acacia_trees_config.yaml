@@ -5,18 +5,18 @@ trainer:
     visualize_output: true
     device_id: 0
     use_cuda: true
-    num_hidden_channels: 12
-    checkpoint_interval: 200
     wandb: true
+    checkpoint_interval: 200
     epochs: 3001
-    embedding_dim: 1
+    batch_size: 8
+    clip_gradients: true
+    num_hidden_channels: 12
+    embedding_dim: 4
     var_lr : .002
     var_loss_weight: 0.1
-    batch_size: 8
-    clip_gradients: false
-    random: true
-    variational: true
-    #use_index: true
+    random: false
+    variational: false
+    use_index: false
     model_config:
         normal_std: 0.1
         update_net_channel_dims: [64, 32, 32, 16]
