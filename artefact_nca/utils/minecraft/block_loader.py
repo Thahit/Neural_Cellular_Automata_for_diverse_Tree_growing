@@ -198,7 +198,7 @@ def get_block_array(
             padding_h = padding[2] if padding else 2
             target = np.zeros((internal_w + padding_w*2, internal_d + padding_d*2, internal_h + padding_h), dtype=object)
 
-            if verbose: print(f'Internal w: {internal_w}, l: {internal_d}, h: {internal_h} => size {target.shape}')
+            if verbose: print(f'Internal w: {internal_w}, l: {internal_d}, h: {internal_h} => size {target.shape} ({internal_w*internal_d*internal_h})')
 
             blocks = nbt_data[i]['Blocks']
             for y in range(internal_h):
@@ -251,8 +251,10 @@ def read_nbt_target(
             raise Exception("directory is empty or has not nbt files")
 
         data = []
-        for path in candidates:
+        for i, path in enumerate(candidates):
             nbt_file = nbtlib.load(path)
+            # f_name = str(path).split('\\')[-1]
+            # print(f'Tree {i}: {f_name}')
             data.append(nbt_file.root)
 
         return get_block_array(

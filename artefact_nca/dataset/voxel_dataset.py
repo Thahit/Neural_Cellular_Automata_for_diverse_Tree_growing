@@ -48,6 +48,7 @@ class VoxelDataset:
             padding_by_power: Optional[int] = None,
             verbose: bool = False
     ):
+        self.device = 'cpu'
         self.verbose = verbose
         self.entity_name = entity_name
         self.load_entity_config = load_entity_config
@@ -116,8 +117,9 @@ class VoxelDataset:
             self.data = [s.astype(np.float32) for s in self.get_seeds(self.pool_size)]
 
     def to_device(self, device):
-        self.data = [torch.from_numpy(t).to(device) for t in self.data]
-        self.targets = [torch.from_numpy(t).to(device).long() for t in self.targets]
+        self.device = device
+        self.data = [torch.from_numpy(t) for t in self.data]
+        self.targets = [torch.from_numpy(t).long() for t in self.targets]
         self.embeddings = torch.from_numpy(self.embeddings).to(device)
 
     def get_seeds(self, batch_size=1):
@@ -175,13 +177,13 @@ class VoxelDataset:
         tree = tree[0] if isinstance(tree, list) else tree
         target = self.targets[tree]
         pools = self.data[tree] if self.sample_specific_pools else self.data[0]
-        return pools[indices], target[indices], self.embeddings[tree], tree, indices
+        return pools[indices].to(self.device), target[indices].to(self.device), self.embeddings[tree], tree, indices
 
     def update_dataset_function(self, out, tree, indices, embedding=None, saveToFile=False):
         if self.sample_specific_pools:
-            self.data[tree][indices] = out
+            self.data[tree][indices] = out.cpu()
         else:
-            self.data[0][indices] = out
+            self.data[0][indices] = out.cpu()
         if embedding is not None:
             self.embeddings[tree] = embedding
             if saveToFile:

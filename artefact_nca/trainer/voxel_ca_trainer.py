@@ -566,10 +566,14 @@ class VoxelCATrainer(BaseTorchTrainer):
                     self.update_dataset_function(out, tree, indices, embedding=embedding, save_emb=save_emb)
                 else:
                     self.update_dataset_function(out, tree, indices)
-            output["prev_batch"].append(batch.detach().cpu().numpy())
-            output["post_batch"].append(out.detach().cpu().numpy())
+                if not self.visualize_output:
+                    del out
+            if self.visualize_output:
+                output["prev_batch"].append(batch.detach().cpu().numpy())
+                output["post_batch"].append(out.detach().cpu().numpy())
             output["total_metrics"].append(metrics)
             output["total_loss"].append(loss)
+
         for metric in output["total_metrics"][0]:
             output["metrics"][metric] = sum([x[metric] for x in output["total_metrics"]]) / self.dataset.num_samples
         output["loss"] = torch.mean(torch.stack(output["total_loss"]))
