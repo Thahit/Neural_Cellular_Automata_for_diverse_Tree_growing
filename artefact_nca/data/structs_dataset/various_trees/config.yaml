@@ -8,7 +8,7 @@ trainer:
     wandb: true
     checkpoint_interval: 200
     epochs: 4001
-    batch_size: 5
+    batch_size: 4
     clip_gradients: true
     num_hidden_channels: 12
     embedding_dim: 4
