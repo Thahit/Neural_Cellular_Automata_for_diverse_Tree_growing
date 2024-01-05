@@ -68,9 +68,10 @@ class VoxelDataset:
             raise ValueError("Sample specific pools are needed if size is not equal for all trees")
         self.num_samples = 1
         self.dimensions = []  # [(w,d,h)]
+        self.block_to_data_dict = {}
         if self.target_voxel is None and self.target_unique_val_dict is None:
             (
-                _,
+                self.block_to_data_dict,
                 self.dimensions,
                 self.target_voxel,
                 self.target_color_dict,
