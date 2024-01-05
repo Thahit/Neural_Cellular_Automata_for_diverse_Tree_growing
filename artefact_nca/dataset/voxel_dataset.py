@@ -147,6 +147,25 @@ class VoxelDataset:
                 for i in range(randint.shape[0]):
                     seed[i, depth // 3: 2*depth // 3, height // 3: 2*height // 3, width // 3: 2*width // 3, randint[i]] = 1.0
         return seed
+    
+    def get_seed_custom(self, dimensions=[12,20,12], batch_size=1):
+        depth = dimensions[0]
+        width = dimensions[2]
+        height = dimensions[1]
+        seed = np.zeros((batch_size, depth, height, width, self.num_channels))
+        # random_class_arr = np.eye(self.num_categories)[np.random.choice(np.arange(1,self.num_categories), batch_size)]
+        randint = np.random.randint(1, self.num_categories, batch_size)
+        if self.spawn_at_bottom:
+            seed[:, depth // 3: 2*depth // 3, 0:3, width // 3: 2*width // 3, self.num_categories:] = 1.0
+            if self.use_random_seed_block:
+                for i in range(randint.shape[0]):
+                    seed[i, depth // 3: 2*depth // 3, 0:3, width // 3: 2*width // 3, randint[i]] = 1.0
+        else:
+            seed[:, depth // 3: 2*depth // 3, height // 3: 2*height // 3, width // 3: 2*width // 3, self.num_categories:] = 1.0
+            if self.use_random_seed_block:
+                for i in range(randint.shape[0]):
+                    seed[i, depth // 3: 2*depth // 3, height // 3: 2*height // 3, width // 3: 2*width // 3, randint[i]] = 1.0
+        return seed
 
     def visualize_seed(self):
         raise NotImplementedError('TODO, needs non equal size adaptation!')
