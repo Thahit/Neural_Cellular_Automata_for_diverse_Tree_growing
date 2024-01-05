@@ -39,7 +39,7 @@ if __name__ == '__main__':
     #                                                                                            'load_range': (
     #                                                                                                8, 15, 8)})
     ct = VoxelCATrainer.from_config(
-        "{}/acacia_trees/acacia_trees_config.yaml".format(base_nbt_path),
+        "{}/acacia_trees/config.yaml".format(base_nbt_path),
         config={
             "dataset_config": {"nbt_path": nbt_path},
             "pretrained_path":"artefact_nca/data/structs_dataset/acacia_trees/2023-12-25-22-50-30_AcaciaTrees_8tree_final_darkgreen/checkpoints/20000/AcaciaTrees_8tree_iteration_20000.pt",
@@ -57,8 +57,9 @@ if __name__ == '__main__':
     #
     #     plt.show()
     #ct.train()
-    embedding = [-0.04584,   0.13713,  -0.04488,   0.17149]
+    embedding = [0.,  0.,   0.,   0.,]
     embedding_params= [   0.01914,   0.07834,  -0.07155,   0.07578,  -0.00835,  -0.15394,  -0.10814,   0.26071]
-    ct.infer(#embeddings = embedding,
-            embedding_params = embedding_params    
+    ct.infer(embeddings = embedding,
+            #embedding_params = embedding_params,
+               #dimensions=[12,20,12],
                 )

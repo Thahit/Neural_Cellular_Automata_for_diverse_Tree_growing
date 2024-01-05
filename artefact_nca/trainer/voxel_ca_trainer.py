@@ -229,7 +229,7 @@ class VoxelCATrainer(BaseTorchTrainer):
         clear_output()
         print(f'step: ', step)
         fig = plt.figure(figsize=(15, 10))
-        ax = plt.figure().add_subplot(projection='3d')
+        ax = fig.add_subplot(projection='3d')
         vis0 = out[:5]
         vis0[vis0 == "_empty"] = None
         ax.voxels(vis0[0], facecolors=vis0[0], edgecolor="k")
@@ -410,8 +410,10 @@ class VoxelCATrainer(BaseTorchTrainer):
         loss += variational_loss * self.var_loss_weight
         return loss, iou_loss, class_loss, variational_loss
 
-    def infer(self, embeddings=None, embedding_params=None, steps = 64, stepsize = 8):
-        batch, targets, embedding, tree, indices = self.sample_batch(0, 1)#batchsize
+    def infer(self, embeddings=None, embedding_params=None, tree_id=0, steps = 64, stepsize = 8, dimensions = [11,18,11]):
+        #batch, targets, embedding, tree, indices = self.sample_batch(0, 1)#batchsize
+        batch = torch.Tensor(self.dataset.get_seed_custom(dimensions)).to(self.device)
+        #batch = torch.zeros((1, dimensions[0], dimensions[1], dimensions[2], self.num_channels)).to(self.device)
 
         if embeddings != None:#input values you are interested in
             embedding_input = torch.Tensor(embeddings).to(self.device)
@@ -425,6 +427,8 @@ class VoxelCATrainer(BaseTorchTrainer):
         else:
             if embedding_params!= None:
                 embedding = torch.Tensor(embedding_params).to(self.device)
+            else:
+                batch, _, embedding, _, _ = self.sample_batch(tree_id, 1)
             
             embedding_input = None
             if self.embedding_dim:
@@ -435,7 +439,7 @@ class VoxelCATrainer(BaseTorchTrainer):
                     embedding_input = torch.normal(mean=0, std=1, size=(self.batch_size, self.embedding_dim))
                     embedding_input = embedding_input.to(self.device)
                 elif self.variational:
-                    embedding_input = torch.ones((self.batch_size, self.embedding_dim))
+                    embedding_input = torch.normal(mean=0, std=1, size=(self.batch_size, self.embedding_dim))
                     embedding_input = embedding_input.to(self.device)
                     embedding.requires_grad = True
                     embedding_input *= torch.exp(0.5 * embedding[1])  # var
@@ -457,7 +461,6 @@ class VoxelCATrainer(BaseTorchTrainer):
                 # have to permute cannot do this direclty
         
         x = batch
-        #print(embedding_input.shape)
         to_vis = x.detach().cpu().numpy()
         self.visualize_one(to_vis, 0)
         for i in range(steps //stepsize):
