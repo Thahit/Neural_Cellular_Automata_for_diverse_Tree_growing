@@ -1,3 +1,4 @@
+import random
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
@@ -11,6 +12,7 @@ import torch.optim as optim
 from einops import rearrange
 from hydra.utils import instantiate
 from IPython.display import clear_output
+from matplotlib.colors import hex2color
 from tqdm import tqdm
 from loguru import logger
 
@@ -219,24 +221,53 @@ class VoxelCATrainer(BaseTorchTrainer):
                     "half_precision": self.half_precision
                 })
 
-
-    def visualize_one(self, out, step = 0):
+    def visualize_one(self, out, step=0, method='o3d'):
         out = rearrange(out, "b d h w c -> b w d h c")
         out = replace_colors(
-                np.argmax(out[:, :, :, :, : self.num_categories], -1),
-                self.dataset.target_color_dict,
-            )
-        clear_output()
-        print(f'step: ', step)
-        fig = plt.figure(figsize=(15, 10))
-        ax = fig.add_subplot(projection='3d')
-        vis0 = out[:5]
-        vis0[vis0 == "_empty"] = None
-        ax.voxels(vis0[0], facecolors=vis0[0], edgecolor="k")
-        #ax.voxels(voxelarray, facecolors=colors, edgecolor='k')
+            np.argmax(out[:, :, :, :, : self.num_categories], -1),
+            self.dataset.target_color_dict,
+        )[0]
+        if method == 'o3d':
+            import open3d as o3d
+            points = []
+            colors = []
+            for x in range(out.shape[0]):
+                for y in range(out.shape[1]):
+                    for z in range(out.shape[2]):
+                        if out[x, y, z]:
+                            points.append([x, z, y])
+                            ran = (random.random() - 0.5) * 0.5
+                            colors.append([min(255, max(c + ran, 0)) for c in hex2color(out[x, y, z])])
+            pcd = o3d.geometry.PointCloud()
+            pcd.points = o3d.utility.Vector3dVector(points)
+            pcd.colors = o3d.utility.Vector3dVector(colors)  # np.random.uniform(0, 1, size=(len(points), 3))
 
-        plt.show()
-    
+            print('voxelization step: ', step)
+            voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud(pcd,
+                                                                        voxel_size=1)
+            # o3d.visualization.draw_geometries([voxel_grid])
+            vis = o3d.visualization.O3DVisualizer()
+            vis.set_background([100, 100, 100])
+            vis.create_window()
+            vis.add_geometry(voxel_grid)
+            ctr = vis.get_view_control()
+            ctr.set_zoom(1)
+            ctr.change_field_of_view(step=1)
+            ctr.rotate(-200, 40)
+            vis.run()
+            vis.destroy_window()
+        else:
+            clear_output()
+            print(f'step: ', step)
+            fig = plt.figure(figsize=(15, 10))
+            ax = fig.add_subplot(projection='3d')
+            vis0 = out[:5]
+            vis0[vis0 == "_empty"] = None
+            ax.voxels(vis0[0], facecolors=vis0[0], edgecolor="k")
+            # ax.voxels(voxelarray, facecolors=colors, edgecolor='k')
+
+            plt.show()
+
     def visualize(self, out):
         # for tree in range(self.dataset.num_samples):
         for tree in range(1):
@@ -307,7 +338,7 @@ class VoxelCATrainer(BaseTorchTrainer):
         life_masks = [None]
         with torch.no_grad():
             for i in bar:
-                x, life_mask = self.model(x, embeddings=embedding_input[tree:tree+1], steps=1, return_life_mask=True)
+                x, life_mask = self.model(x, embeddings=embedding_input[tree:tree + 1], steps=1, return_life_mask=True)
                 life_masks.append(life_mask)
                 o = rearrange(x, "b c d h w -> b d h w c")
                 out.append(o)
@@ -410,12 +441,12 @@ class VoxelCATrainer(BaseTorchTrainer):
         loss += variational_loss * self.var_loss_weight
         return loss, iou_loss, class_loss, variational_loss
 
-    def infer(self, embeddings=None, embedding_params=None, tree_id=0, steps = 64, stepsize = 8, dimensions = [11,18,11]):
-        #batch, targets, embedding, tree, indices = self.sample_batch(0, 1)#batchsize
+    def infer(self, embeddings=None, embedding_params=None, tree_id=0, steps=64, stepsize=8, dimensions=[11, 18, 11]):
+        # batch, targets, embedding, tree, indices = self.sample_batch(0, 1)#batchsize
         batch = torch.Tensor(self.dataset.get_seed_custom(dimensions)).to(self.device)
-        #batch = torch.zeros((1, dimensions[0], dimensions[1], dimensions[2], self.num_channels)).to(self.device)
+        # batch = torch.zeros((1, dimensions[0], dimensions[1], dimensions[2], self.num_channels)).to(self.device)
 
-        if embeddings != None:#input values you are interested in
+        if embeddings != None:  # input values you are interested in
             embedding_input = torch.Tensor(embeddings).to(self.device)
             embedding_input = embedding_input.reshape(1, -1)
             shape_to_emulate = [dim_i for dim_i in batch.shape[1:-1]]
@@ -425,11 +456,11 @@ class VoxelCATrainer(BaseTorchTrainer):
             embedding_input = embedding_input.permute(-2, 0, 1, 2, -1)  # back to b d h w c
             # have to permute cannot do this direclty
         else:
-            if embedding_params!= None:
+            if embedding_params != None:
                 embedding = torch.Tensor(embedding_params).to(self.device)
             else:
-                batch, _, embedding, _, _ = self.sample_batch(tree_id, 1)
-            
+                _, _, embedding, _, _ = self.sample_batch(tree_id, 1)
+
             embedding_input = None
             if self.embedding_dim:
                 embedding = embedding.reshape(2, -1)  # dont come in correct shape
@@ -446,7 +477,7 @@ class VoxelCATrainer(BaseTorchTrainer):
                     embedding_input += embedding[0]  # mean
                 else:
                     if self.use_index:
-                        embedding_input *= tree / self.num_samples
+                        embedding_input *= tree_id / self.num_samples
                     else:  # encoder
                         embedding = embedding[0]  # because wrong shape
                         embedding.requires_grad = True
@@ -459,17 +490,16 @@ class VoxelCATrainer(BaseTorchTrainer):
                 embedding_input = embedding_input.expand(shape_to_emulate)  # l,h,w, batch, channel
                 embedding_input = embedding_input.permute(-2, 0, 1, 2, -1)  # back to b d h w c
                 # have to permute cannot do this direclty
-        
+
         x = batch
         to_vis = x.detach().cpu().numpy()
-        self.visualize_one(to_vis, 0)
-        for i in range(steps //stepsize):
+        # self.visualize_one(to_vis, 0)
+        for i in range(steps // stepsize):
             with torch.no_grad():
                 x = self.model(x, embeddings=embedding_input, steps=stepsize, rearrange_output=True)
                 print("input: ", x.shape)
                 to_vis = x.detach().cpu().numpy()
-                self.visualize_one(to_vis, (i+1)*stepsize)
-    
+                self.visualize_one(to_vis, (i + 1) * stepsize)
 
     def train_func(self, x, targets, embeddings=None, embedding_params=None, steps=1, save_emb=False):
         self.optimizer.zero_grad()
