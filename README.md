@@ -27,11 +27,6 @@ If you want CUDA, run afterward
 ```
 pip install torch==2.1.0 --index-url https://download.pytorch.org/whl/cu118
 ```
-### For ray tune + mlflow
-```
-python -m pip install -r ray-requirements.txt
-python setup.py install
-```
 
 Usage
 -------------
@@ -86,7 +81,7 @@ Authors (Change)
 -------
 Nicolas Blumer <nblume@student.ethz.ch>, <https://github.com/Thahit>
 
-?? ?? <??>, <https://github.com/??>
+Oleh Kuzyk <okuzyk@student.ethz.ch>, <https://github.com/Olezhko2001>
 
 ?? ?? <??>, <https://github.com/??>
 
