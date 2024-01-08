@@ -115,11 +115,15 @@ def get_block_array(
     num_trees = len(nbt_data)
 
     if verbose: print(f'Num Trees: {num_trees}')
-    unique_set = set()
+    unique_set_blocks = set()
+    unique_set_data = set()
     for i in range(len(nbt_data)):
-        unique_set.update(nbt_data[i]['Blocks'])
-    unique_vals = sorted(list(unique_set))
-    if verbose: print(unique_vals)
+        unique_set_blocks.update(nbt_data[i]['Blocks'])
+        unique_set_data.update(nbt_data[i]['Data'])
+    unique_vals = sorted(list(unique_set_blocks))
+    unique_vals_data = sorted(list(unique_set_data))
+    if verbose: print('Unique block values: ', unique_vals)
+    if verbose: print('Unique data values: ', unique_vals_data)
     unique_vals.remove(0)
     unique_vals.insert(0, Byte(0))
     color_dict = get_color_dict(unique_vals)
@@ -128,6 +132,29 @@ def get_block_array(
     if verbose: print(unique_val_to_int_dict)
     unique_val_dict = {i: unique_vals[i] for i in range(len(unique_vals))}
     if verbose: print(unique_val_dict)
+
+    # print(nbt_data[0])
+    block_to_data_conversion = {}
+    for j in range(num_trees):
+
+        for i in range(len(nbt_data[j]['Data'])):
+            if nbt_data[j]['Blocks'][i] not in block_to_data_conversion:
+                block_to_data_conversion[nbt_data[j]['Blocks'][i]] = {nbt_data[j]['Data'][i]}
+            else:
+                block_to_data_conversion[nbt_data[j]['Blocks'][i]].add(nbt_data[j]['Data'][i])
+    if verbose: print(block_to_data_conversion)
+    # pal = []
+    # for j in range(num_trees):
+    #     print('len', len(nbt_data[j]['palette']))
+    #     print('palette', nbt_data[j]['palette'])
+    #     pal.extend([e.unpack() for e in nbt_data[j]['palette']])
+    # print(pal)
+    # print('len Data', len(nbt_data[0]['Data']))
+    # print('len Blocks', len(nbt_data[0]['Blocks']))
+    # print('Height', nbt_data[0]['Height'])
+    # print('Length', nbt_data[0]['Length'])
+    # print('Width', nbt_data[0]['Width'])
+    # print('Total', int(nbt_data[0]['Width']) * int(nbt_data[0]['Length']) * int(nbt_data[0]['Height']))
 
     if same_size:
         if verbose: print(f'Start equal size')
@@ -176,14 +203,14 @@ def get_block_array(
             x_max = arr.shape[1]
             z_max = arr.shape[2]
             y_max = arr.shape[3]
-        blocks = nbt_data[0]['Blocks']
+
         res = []
         for i in range(num_trees):
             res.append(arr[i, x_min:x_max, z_min:z_max, y_min: y_max])
         dims = [r.shape for r in res]
         dimensions = np.array(dims)
         if verbose: print(f'Loaded {num_trees} trees with dimensions: {dimensions}')
-        return blocks, dimensions, res, color_dict, unique_val_dict
+        return block_to_data_conversion, dimensions, res, color_dict, unique_val_dict
     else:
         if verbose: print(f'Start unequal size')
         arr = []
@@ -198,7 +225,7 @@ def get_block_array(
             padding_h = padding[2] if padding else 2
             target = np.zeros((internal_w + padding_w*2, internal_d + padding_d*2, internal_h + padding_h), dtype=object)
 
-            if verbose: print(f'Internal w: {internal_w}, l: {internal_d}, h: {internal_h} => size {target.shape}')
+            if verbose: print(f'Internal w: {internal_w}, l: {internal_d}, h: {internal_h} => size {target.shape} ({internal_w*internal_d*internal_h})')
 
             blocks = nbt_data[i]['Blocks']
             for y in range(internal_h):
@@ -210,9 +237,8 @@ def get_block_array(
             arr.append(target)
             dimensions.append(target.shape)
 
-        blocks = nbt_data[0]['Blocks']
         if verbose: print(f'Loaded {num_trees} trees with dimensions: {dimensions}')
-        return blocks, dimensions, arr, color_dict, unique_val_dict
+        return block_to_data_conversion, dimensions, arr, color_dict, unique_val_dict
 
 
 def read_nbt_target(
@@ -251,8 +277,10 @@ def read_nbt_target(
             raise Exception("directory is empty or has not nbt files")
 
         data = []
-        for path in candidates:
+        for i, path in enumerate(candidates):
             nbt_file = nbtlib.load(path)
+            # f_name = str(path).split('\\')[-1]
+            # print(f'Tree {i}: {f_name}')
             data.append(nbt_file.root)
 
         return get_block_array(

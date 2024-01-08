@@ -264,6 +264,7 @@ class BaseTorchTrainer(metaclass=abc.ABCMeta):
     ):
         checkpoint = torch.load(checkpoint_path, map_location=self.device)
         self.model.load_state_dict(checkpoint["model"])
+        self.model.to(self.device)
         if "optimizer" in checkpoint and "scheduler" in checkpoint:
             if load_optimizer_and_scheduler:
                 self.optimizer.load_state_dict(checkpoint["optimizer"])

@@ -1,22 +1,22 @@
 trainer:
-    name: AcaciaTrees_8tree
+    name: BigTrees_20tree
     min_steps: 48
     max_steps: 65
-    visualize_output: true
+    visualize_output: false
     device_id: 0
     use_cuda: true
-    num_hidden_channels: 12
+    wandb: false
     checkpoint_interval: 200
-    wandb: true
-    epochs: 3001
-    embedding_dim: 1
+    epochs: 4001
+    batch_size: 5
+    clip_gradients: true
+    num_hidden_channels: 12
+    embedding_dim: 4
     var_lr : .002
     var_loss_weight: 0.1
-    batch_size: 8
-    clip_gradients: false
-    random: true
+    random: false
     variational: true
-    #use_index: true
+    use_index: false
     model_config:
         normal_std: 0.1
         update_net_channel_dims: [64, 32, 32, 16]
@@ -24,12 +24,12 @@ trainer:
         lr: 0.002
     dataset_config:
         load_embeddings: false
-        pool_size: 32
+        pool_size: 24
         spawn_at_bottom: false
         verbose: false
         sample_specific_pool: true
         equal_sized_samples: false
-        load_entity_config: {'verbose': false}
+        load_entity_config: {'verbose': true}
 
 defaults:
     - voxel

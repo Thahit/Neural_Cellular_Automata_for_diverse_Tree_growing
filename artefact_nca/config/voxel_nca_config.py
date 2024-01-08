@@ -53,6 +53,7 @@ class VoxelCADatasetConfig(BaseDatasetConfig):
     load_embeddings: bool = False#II("trainer.variational")
     equal_sized_samples: bool = False
     sample_specific_pool: bool = True
+    embedding_path: Optional[str] = None
     embedding_dim: Optional[int] = II("trainer.embedding_dim")
     num_hidden_channels: Any = II("trainer.num_hidden_channels")
     half_precision: Any = II("trainer.half_precision")
