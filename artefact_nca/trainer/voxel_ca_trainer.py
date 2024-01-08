@@ -228,8 +228,9 @@ class VoxelCATrainer(BaseTorchTrainer):
         out = replace_colors(
             np.argmax(out[:, :, :, :, : self.num_categories], -1),
             self.dataset.target_color_dict,
-        )[0]
+        )
         if method == 'o3d':
+            out = out[0]
             import open3d as o3d
             points = []
             colors = []
@@ -238,7 +239,7 @@ class VoxelCATrainer(BaseTorchTrainer):
                     for z in range(out.shape[2]):
                         if out[x, y, z]:
                             points.append([x, z, y])
-                            ran = (random.random() - 0.5) * 0.25
+                            ran = (random.random() - 0.5) * 0.1
                             colors.append([min(255, max(c + ran, 0)) for c in hex2color(out[x, y, z])])
             pcd = o3d.geometry.PointCloud()
             pcd.points = o3d.utility.Vector3dVector(points)
@@ -252,9 +253,9 @@ class VoxelCATrainer(BaseTorchTrainer):
             vis.create_window()
             vis.add_geometry(voxel_grid)
             ctr = vis.get_view_control()
-            ctr.set_zoom(1)
+            ctr.set_zoom(0.9)
             ctr.change_field_of_view(step=1)
-            ctr.rotate(-200, 40)
+            ctr.rotate(-200, 30)
             vis.run()
             vis.destroy_window()
         else:

@@ -15,7 +15,7 @@ trainer:
     var_lr : .002
     var_loss_weight: 0.1
     random: false
-    variational: false
+    variational: true
     use_index: false
     model_config:
         normal_std: 0.1

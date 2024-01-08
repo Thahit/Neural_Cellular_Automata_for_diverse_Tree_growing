@@ -86,8 +86,18 @@ def first_nonzero(arr, axis, invalid_val=-1):
 
 
 def get_color_dict(unique_vals):
-    state = np.random.RandomState(0)
-    color_arr = list(state.uniform(0, 1, (len(unique_vals), 3)))
+    if len(unique_vals) == 3:
+        print(f'Fixed Colors!')
+        color_arr = [(64/255, 47/255, 30/255), (33/255, 100/255, 19/255)]
+    elif len(unique_vals) == 8:
+        print(f'Fixed Colors 7!')
+        color_arr = [(64 / 255, 47 / 255, 30 / 255), (100 / 255, 60 / 255, 35 / 255),  # normal brown | light brown
+                     (148 / 255, 117 / 255, 98 / 255), (66 / 255, 200 / 255, 38 / 255),  # dark brown | light green (66 / 255, 200 / 255, 38 / 255)
+                     (75 / 255, 49 / 255, 31 / 255), (33 / 255, 100 / 255, 19 / 255),  # dark brown | normal green
+                     (20 / 255, 15 / 255, 10 / 255)]  # black brown
+    else:
+        state = np.random.RandomState(0)
+        color_arr = list(state.uniform(0, 1, (len(unique_vals), 3)))
     color_arr = [rgb2hex(color) for color in color_arr]
     color_arr = [None] + color_arr
     colors = color_arr[: len(unique_vals)]

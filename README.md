@@ -16,16 +16,19 @@ Requirements
 Installation
 ---------------
 ### For general installation
-```
-python setup.py install
-pip install -r requirements.txt
-```
-Depending on your setup, you might have to run the setup.py script after every change in code.
+Depending on your setup, you might have to run the setup.py script after every change in code (because of hydra!).
 
-If you want CUDA, run afterward
+If you want CUDA, first run this line otherwise skip
 ```
 pip install torch==2.1.0 --index-url https://download.pytorch.org/whl/cu118
 ```
+
+Run following to setup the project
+```
+pip install -r requirements.txt
+python setup.py install
+```
+
 
 Usage
 -------------
@@ -41,18 +44,18 @@ trainer:
     visualize_output: true
     device_id: 0
     use_cuda: true
-    num_hidden_channels: 12
-    checkpoint_interval: 200
     wandb: true
+    checkpoint_interval: 200
     epochs: 3001
-    embedding_dim: 1
+    batch_size: 8
+    clip_gradients: true
+    num_hidden_channels: 12
+    embedding_dim: 4
     var_lr : .002
     var_loss_weight: 0.1
-    batch_size: 8
-    clip_gradients: false
-    random: true
+    random: false
     variational: true
-    #use_index: true
+    use_index: false
     model_config:
         normal_std: 0.1
         update_net_channel_dims: [64, 32, 32, 16]
@@ -86,7 +89,7 @@ defaults:
 - `use_index` - embeddings dimension is filled with normalized id of the tree
 
 ## Generation and Training
-See [training Python file](run/train.py) for ways to train your models and [inference Python file](run/inference.py) to produce inference results using the pretrained model.
+See [training Python file](run/train.py) for ways to train your models and [inference Python file](run/inference.py) to produce inference results using pretrained models.
 
 Authors
 -------

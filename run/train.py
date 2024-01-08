@@ -5,10 +5,12 @@ from artefact_nca.trainer.voxel_ca_trainer import VoxelCATrainer
 
 base_nbt_path = "C:/Users/cedri/Desktop/Code/ETH/DLProject/Neural_Cellular_Automata_for_diverse_Tree_growing/artefact_nca/data/structs_dataset"
 
+
 def find_file(directory, extension):
     for file in os.listdir(directory):
         if file.endswith(extension):
             return os.path.join(directory, file)
+
 
 if __name__ == '__main__':
     dataset = 'various_trees'
@@ -24,7 +26,7 @@ if __name__ == '__main__':
         config={
             # "pretrained_path": pretrained_path,
             "use_cuda": torch.cuda.is_available(),
-            "wandb": True,
+            "wandb": False,
             # "dataset_config": {"nbt_path": nbt_path, "embedding_path": embedding_path},
             "dataset_config": {"nbt_path": nbt_path},
         }
