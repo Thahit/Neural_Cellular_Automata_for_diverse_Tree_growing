@@ -34,7 +34,7 @@ Usage
 Each nca is trained on a specific structure w/ hyperparams and configurations defined in yaml config, which we use with [hydra](https://github.com/facebookresearch/hydra) to create the [NCA trainer class](artefact_nca/trainer/voxel_ca_trainer.py).
 
 [Example Config](artefact_nca/data/structs_dataset/acacia_trees/config.yaml) :
-```
+```yaml
 trainer:
     name: AcaciaTrees_8tree
     min_steps: 48
@@ -72,6 +72,19 @@ defaults:
     - voxel
 ```
 
+#### Additionally introduced parameters:
+
+- `embedding_dim` - dimension of the embedding channel given to the input
+- `load_embeddings` - true if we load embeddings for the prestored CSV file
+- `embedding_path` - for pretrained embeddings loading
+- `clip_gradients` - true if gradients clipped
+- `random` - true if embeddings are sampled from the standard Gaussian
+- `variational` - true if variational autoencoder is used
+- `var_lr` - learning rate of the variational autoencoder
+- `var_loss_weight` - weight of the variational loss in the total loss
+- `sample_specific_pool` - true if we use specific sampling pool as starting points
+- `equal_sized_samples` - true if all loaded sample trees have equal sizes
+- `use_index` - embeddings dimension is filled with normalized id of the tree
 
 ## Generation and Training
 See [training Python file](run/train.py) for ways to train your models and [inference Python file](run/inference.py) to produce inference results using the pretrained model.
