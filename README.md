@@ -74,8 +74,7 @@ defaults:
 
 
 ## Generation and Training
-See [training Python file](run/train.py) for ways to train your models.
-See [inference Python file](run/inference.py) to produce inference results using the pretrained model.
+See [training Python file](run/train.py) for ways to train your models and [inference Python file](run/inference.py) to produce inference results using the pretrained model.
 
 Authors (Change)
 -------
