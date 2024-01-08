@@ -5,3 +5,5 @@
 /notebooks/checkpoints/
 /checkpoints/
 /wandb/
+.idea/
+.venv/
