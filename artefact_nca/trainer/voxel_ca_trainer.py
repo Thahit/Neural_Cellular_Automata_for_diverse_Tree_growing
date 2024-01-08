@@ -89,7 +89,7 @@ class VoxelCATrainer(BaseTorchTrainer):
     clip_gradients: bool = attr.ib(default=False)
     use_index: bool = attr.ib(default=False)
     random: bool = attr.ib(default=False)
-    leanrable_embeddings = variational or (embedding_dim and (not random) and use_index)
+    learnable_embeddings = False
     num_channels = 0
 
     def post_dataset_setup(self):
@@ -104,6 +104,8 @@ class VoxelCATrainer(BaseTorchTrainer):
         self.num_categories = self.dataset.num_categories
         self.num_channels = self.dataset.num_channels
         self.model_config["living_channel_dim"] = self.num_categories
+
+        self.learnable_embeddings = self.variational or (self.embedding_dim and (not self.random) and self.use_index)
 
     def get_seed(self, batch_size=1, tree=None):
         if tree is None:
@@ -236,7 +238,7 @@ class VoxelCATrainer(BaseTorchTrainer):
                     for z in range(out.shape[2]):
                         if out[x, y, z]:
                             points.append([x, z, y])
-                            ran = (random.random() - 0.5) * 0.5
+                            ran = (random.random() - 0.5) * 0.25
                             colors.append([min(255, max(c + ran, 0)) for c in hex2color(out[x, y, z])])
             pcd = o3d.geometry.PointCloud()
             pcd.points = o3d.utility.Vector3dVector(points)
@@ -246,8 +248,7 @@ class VoxelCATrainer(BaseTorchTrainer):
             voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud(pcd,
                                                                         voxel_size=1)
             # o3d.visualization.draw_geometries([voxel_grid])
-            vis = o3d.visualization.O3DVisualizer()
-            vis.set_background([100, 100, 100])
+            vis = o3d.visualization.Visualizer()
             vis.create_window()
             vis.add_geometry(voxel_grid)
             ctr = vis.get_view_control()
@@ -303,6 +304,9 @@ class VoxelCATrainer(BaseTorchTrainer):
             plt.show()
 
     def rollout(self, initial=None, steps=100, tree=0):
+        """
+            Deprecated & Buggy
+        """
         if initial is None:
             initial, _, embedding, _, _ = self.sample_batch(tree, 1)
         if not isinstance(initial, torch.Tensor):
@@ -472,7 +476,6 @@ class VoxelCATrainer(BaseTorchTrainer):
                 elif self.variational:
                     embedding_input = torch.normal(mean=0, std=1, size=(self.batch_size, self.embedding_dim))
                     embedding_input = embedding_input.to(self.device)
-                    embedding.requires_grad = True
                     embedding_input *= torch.exp(0.5 * embedding[1])  # var
                     embedding_input += embedding[0]  # mean
                 else:
@@ -480,7 +483,6 @@ class VoxelCATrainer(BaseTorchTrainer):
                         embedding_input *= tree_id / self.num_samples
                     else:  # encoder
                         embedding = embedding[0]  # because wrong shape
-                        embedding.requires_grad = True
                         embedding_input *= embedding
 
                 # shape_to_emulate = [num for num in batch.shape]#batch channel, l, h ,w
@@ -493,11 +495,11 @@ class VoxelCATrainer(BaseTorchTrainer):
 
         x = batch
         to_vis = x.detach().cpu().numpy()
-        # self.visualize_one(to_vis, 0)
+        self.visualize_one(to_vis, 0, method='mat')
+        print("input: ", x.shape)
         for i in range(steps // stepsize):
             with torch.no_grad():
                 x = self.model(x, embeddings=embedding_input, steps=stepsize, rearrange_output=True)
-                print("input: ", x.shape)
                 to_vis = x.detach().cpu().numpy()
                 self.visualize_one(to_vis, (i + 1) * stepsize)
 
@@ -522,7 +524,7 @@ class VoxelCATrainer(BaseTorchTrainer):
             "loss": loss,
         }
 
-        if self.leanrable_embeddings:  # optimizer cannot do this as it is nor part of the model and change
+        if self.learnable_embeddings:  # optimizer cannot do this as it is nor part of the model and change
             out['metrics']["var_loss"] = var_loss.item()
             with torch.no_grad():
                 embedding_params -= self.var_lr * embedding_params.grad

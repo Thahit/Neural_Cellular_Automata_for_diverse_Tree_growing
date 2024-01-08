@@ -34,7 +34,7 @@ if __name__ == '__main__':
     # nbt_path = "{}/acacia_trees/acacia_003.nbt".format(base_nbt_path)
     dataset = 'various_trees'
     nbt_path = "{}/{}".format(base_nbt_path, dataset)
-    checkpoints_path = "C:/Users/cedri/Desktop/Code/ETH/DLProject/Neural_Cellular_Automata_for_diverse_Tree_growing/checkpoints/2024-01-05-00-40-39_VariousTrees_20tree/checkpoints"
+    checkpoints_path = "C:/Users/cedri/Desktop/Code/ETH/DLProject/Neural_Cellular_Automata_for_diverse_Tree_growing/checkpoints/2024-01-05-00-40-39_VariousTrees_20tree_final_pink/checkpoints"
     directory = f"{checkpoints_path}/{2600}"
     config_path = find_file(directory, ".yaml")
     pretrained_path = find_file(directory, ".pt")
@@ -49,12 +49,12 @@ if __name__ == '__main__':
     ct = VoxelCATrainer.from_config(
         "{}/{}/config.yaml".format(base_nbt_path, dataset),
         config={
-            "pretrained_path": pretrained_path,
+            # "pretrained_path": pretrained_path,
             "use_cuda": torch.cuda.is_available(),
-            # "wandb": False,
-            "dataset_config": {"nbt_path": nbt_path, "embedding_path": embedding_path},
+            "wandb": True,
+            # "dataset_config": {"nbt_path": nbt_path, "embedding_path": embedding_path},
 
-            # "dataset_config": {"nbt_path": nbt_path},
+            "dataset_config": {"nbt_path": nbt_path},
         }
     )
     # targets = ct.dataset.targets
