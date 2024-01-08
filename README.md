@@ -12,7 +12,6 @@ The page is heavily inspired by [Growing 3D Artefacts and Functional Machines wi
 Requirements
 ----
 - python3.8
-- This package automatically install `test-evocraft-py` (https://github.com/shyamsn97/test-evocraft-py), but for further functionality follow installation steps here: https://github.com/real-itu/Evocraft-py
 
 Installation
 ---------------
