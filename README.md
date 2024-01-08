@@ -33,8 +33,7 @@ Usage
 ### Configs
 Each nca is trained on a specific structure w/ hyperparams and configurations defined in yaml config, which we use with [hydra](https://github.com/facebookresearch/hydra) to create the [NCA trainer class](artefact_nca/trainer/voxel_ca_trainer.py).
 
-[Example Config](artefact_nca/data/structs_dataset/acacia_trees
-/acacia_trees_config.yaml) :
+[Example Config](artefact_nca/data/structs_dataset/acacia_trees/config.yaml) :
 ```
 trainer:
     name: AcaciaTrees_8tree
@@ -75,8 +74,8 @@ defaults:
 
 
 ## Generation and Training
-### See [Python file ](run/train.py) for ways to train your models.
-### See [Python file](run/inference.py) to produce inference results.
+See [training Python file](run/train.py) for ways to train your models.
+See [inference Python file](run/inference.py) to produce inference results using the pretrained model.
 
 Authors (Change)
 -------
