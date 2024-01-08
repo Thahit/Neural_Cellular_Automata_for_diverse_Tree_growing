@@ -7,3 +7,4 @@
 /wandb/
 .idea/
 .venv/
+__pycache__
