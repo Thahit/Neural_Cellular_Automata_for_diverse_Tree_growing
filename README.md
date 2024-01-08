@@ -76,13 +76,12 @@ defaults:
 ## Generation and Training
 See [training Python file](run/train.py) for ways to train your models and [inference Python file](run/inference.py) to produce inference results using the pretrained model.
 
-Authors (Change)
+Authors
 -------
+Cedric Caspar <ccaspar@student.ethz.ch>, <https://github.com/CedricCaspar>
+
 Nicolas Blumer <nblume@student.ethz.ch>, <https://github.com/Thahit>
 
 Oleh Kuzyk <okuzyk@student.ethz.ch>, <https://github.com/Olezhko2001>
 
-?? ?? <??>, <https://github.com/??>
-
-?? ?? <??>, <https://github.com/??>
-
+Piyushi Goyal <pgoyal@student.ethz.ch>, <https://github.com/piyushigoyal>
