@@ -75,7 +75,8 @@ defaults:
 
 
 ## Generation and Training
-### See [Python file ](notebooks/dataLoadingTest.py) for ways to train you models
+### See [Python file ](run/train.py) for ways to train your models.
+### See [Python file](run/inference.py) to produce inference results.
 
 Authors (Change)
 -------
