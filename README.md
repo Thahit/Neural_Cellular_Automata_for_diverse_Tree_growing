@@ -4,9 +4,11 @@
 Our Project aims to enhance Minecraft landscapes with AI-generated 3D trees. Utilizing neural cellular automata, each tree evolves independently, creating diverse and realistic forests. Instead of manually designing a number of tree templates to use again and again, the Automata creates random trees that can repair themselves/regrow naturally. <br>
 The page is heavily inspired by [Growing 3D Artefacts and Functional Machines with Neural Cellular Automata.](https://github.com/real-itu/3d-artefacts-nca)<br>
 [![Paper](https://img.shields.io/badge/paper-arxiv.2103.08737-B31B1B.svg)](https://arxiv.org/abs/2103.08737)
-
 </div>
 
+<p align="center">
+  <img src="img/various_pink_step100_18-18-30_Embed0000.PNG" alt="Example generation"/>
+</p>
 ---
 
 Requirements
@@ -90,6 +92,9 @@ defaults:
 
 ## Generation and Training
 See [training Python file](run/train.py) for ways to train your models and [inference Python file](run/inference.py) to produce inference results using pretrained models.
+
+## Paper
+The paper can be found [here](Paper.pdf).
 
 Authors
 -------
